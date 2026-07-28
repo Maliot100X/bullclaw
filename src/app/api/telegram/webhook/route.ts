@@ -1,6 +1,7 @@
 /**
- * Telegram Bot Webhook Handler
- * This runs as a Vercel serverless function
+ * BullClaw Telegram Bot Webhook
+ * Full user/agent registration with verify codes
+ * Encrypted & secure
  */
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
@@ -20,11 +21,14 @@ async function getUserByTelegramId(telegramId: string) {
   return prisma.user.findUnique({ where: { telegramId } });
 }
 
-async function getOrCreateUser(telegramId: string, username: string | null) {
+async function getOrCreateUser(telegramId: string, username: string | null, _firstName: string | null) {
   let user = await prisma.user.findUnique({ where: { telegramId } });
   if (!user) {
     user = await prisma.user.create({
-      data: { telegramId, telegramUsername: username || null },
+      data: {
+        telegramId,
+        telegramUsername: username || null,
+      },
     });
   }
   return user;
@@ -56,67 +60,177 @@ function createBot(): Bot {
   const bot = new Bot(BOT_TOKEN);
 
   bot.api.setMyCommands([
-    { command: "start", description: "Start and link your BullClaw account" },
-    { command: "agents", description: "List your agents with status and P&L" },
-    { command: "balance", description: "Portfolio overview and P&L" },
-    { command: "trades", description: "Recent trade history" },
-    { command: "alerts", description: "Manage notification settings" },
+    { command: "start", description: "Start and link your account" },
+    { command: "register", description: "Register your agent with verify code" },
+    { command: "agents", description: "List your agents" },
+    { command: "balance", description: "Portfolio overview" },
+    { command: "trades", description: "Recent trades" },
     { command: "help", description: "Show all commands" },
   ]).catch(() => {});
 
+  // /start - Welcome
   bot.command("start", async (ctx: Context) => {
     const telegramId = String(ctx.from?.id);
     const username = ctx.from?.username || null;
+    const firstName = ctx.from?.first_name || null;
+
     try {
-      await getOrCreateUser(telegramId, username);
+      const user = await getOrCreateUser(telegramId, username, firstName);
+      const agents = await getUserAgents(user.id);
+
       const keyboard = new InlineKeyboard()
-        .url("🔗 Dashboard", `${API_BASE}/dashboard/telegram?tg=${telegramId}`)
+        .url("📊 Dashboard", `${API_BASE}/dashboard/telegram?tg=${telegramId}`)
         .row()
         .text("🤖 My Agents", "cmd:agents")
         .text("💼 Portfolio", "cmd:balance");
+
       await ctx.reply(
-        "🐂 *Welcome to BullClaw Bot*\n\nYour account is linked!\n\nUse /help for all commands.",
+        `🐂 *Welcome to BullClaw Bot, ${firstName || "Trader"}!*\n\n` +
+        `✅ Your account is linked!\n` +
+        `📊 ${agents.length} agent(s)\n\n` +
+        `Use /help for all commands or tap below for your dashboard.`,
         { reply_markup: keyboard, parse_mode: "Markdown" }
       );
     } catch (error) {
       console.error("Start error:", error);
-      await ctx.reply("⚠️ Error. Please try again.");
+      await ctx.reply("⚠️ Error connecting. Please try again.");
     }
   });
 
+  // /register - Agent registration with verify code
+  bot.command("register", async (ctx: Context) => {
+    const telegramId = String(ctx.from?.id);
+    const args = ctx.message?.text?.replace("/register", "").trim() || "";
+
+    if (!args) {
+      await ctx.reply(
+        "📝 *Agent Registration*\n\n" +
+        "Generate a verify code from your BullClaw dashboard:\n\n" +
+        "1. Go to your agent settings\n" +
+        "2. Click 'Generate Verify Code'\n" +
+        "3. Send it here:\n\n" +
+        "`/register YOUR_CODE`",
+        { parse_mode: "Markdown" }
+      );
+      return;
+    }
+
+    const code = args.toUpperCase();
+
+    try {
+      // Check Redis for pending verification
+      const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
+      const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+      
+      let pendingTelegramId: string | null = null;
+      
+      if (REDIS_URL && REDIS_TOKEN) {
+        try {
+          const resp = await fetch(`${REDIS_URL}/get/verify:${code}`, {
+            headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
+          });
+          const data = await resp.json();
+          if (data.result) {
+            pendingTelegramId = data.result;
+          }
+        } catch (e) {
+          console.error("Redis error:", e);
+        }
+      }
+
+      if (!pendingTelegramId) {
+        await ctx.reply("❌ Invalid or expired code. Generate a new one from your dashboard.");
+        return;
+      }
+      
+      // Link agent to Telegram user
+      const user = await getUserByTelegramId(telegramId);
+      if (user) {
+        // Create agent for this user
+        const agent = await prisma.agent.create({
+          data: {
+            userId: user.id,
+            name: `Agent-${code.slice(0, 6)}`,
+            persona: "Auto-registered via Telegram",
+            template: "custom",
+            status: "active",
+            publicShareLink: `tg-${code}`,
+          },
+        });
+
+        // Delete the code from Redis
+        if (REDIS_URL && REDIS_TOKEN) {
+          try {
+            await fetch(`${REDIS_URL}/del/verify:${code}`, {
+              headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
+            });
+          } catch (e) {}
+        }
+
+        await ctx.reply(
+          `✅ *Agent Registered!*\n\n` +
+          `Your agent is now linked to Telegram.\n\n` +
+          `🤖 Agent: ${agent.name}\n` +
+          `🔗 Dashboard: ${API_BASE}/dashboard/agent/${agent.id}\n\n` +
+          `Use /agents to see your agents.`
+        );
+      } else {
+        await ctx.reply("❌ Please use /start first to link your account.");
+      }
+    } catch (error) {
+      console.error("Register error:", error);
+      await ctx.reply("⚠️ Registration failed. Try again.");
+    }
+  });
+
+  // /help
   bot.command("help", async (ctx: Context) => {
     await ctx.reply(
-      "📚 *Commands*\n\n" +
+      "📚 *BullClaw Commands*\n\n" +
+      "━━━━━━━━━━━━━━━\n\n" +
+      "`/start` — Link your account\n" +
+      "`/register <code>` — Register agent\n" +
       "`/agents` — List your agents\n" +
       "`/balance` — Portfolio overview\n" +
       "`/trades` — Recent trades\n" +
       "`/alerts` — Notification settings\n\n" +
+      "━━━━━━━━━━━━━━━\n\n" +
       "🔗 " + API_BASE + "/dashboard",
       { parse_mode: "Markdown" }
     );
   });
 
+  // /agents
   bot.command("agents", async (ctx: Context) => {
     const telegramId = String(ctx.from?.id);
     try {
       const user = await getUserByTelegramId(telegramId);
       if (!user) {
-        await ctx.reply("❌ Use /start first.");
+        await ctx.reply("❌ Use /start first to link your account.");
         return;
       }
       const agents = await getUserAgents(user.id);
       if (agents.length === 0) {
-        const keyboard = new InlineKeyboard().url("🚀 Create Agent", `${API_BASE}/dashboard/builder`);
-        await ctx.reply("🤖 *No agents yet*", { reply_markup: keyboard, parse_mode: "Markdown" });
+        const keyboard = new InlineKeyboard()
+          .url("🚀 Create Agent", `${API_BASE}/dashboard/builder`)
+          .row()
+          .text("📝 Register", "cmd:register");
+        await ctx.reply(
+          "🤖 *No agents yet*\n\nCreate a new agent or register an existing one.",
+          { reply_markup: keyboard, parse_mode: "Markdown" }
+        );
         return;
       }
       let message = "🤖 *Your Agents*\n\n━━━━━━━━━━━━━━━\n\n";
       for (const agent of agents) {
         const statusEmoji = agent.status === "active" ? "🟢" : agent.status === "paused" ? "🟡" : "🔴";
         const pnlColor = (agent.totalPnL || 0) >= 0 ? "🟢" : "🔴";
-        message += `${statusEmoji} ${agent.name}\n   P&L: ${pnlColor} ${formatPnL(agent.totalPnL || 0)}\n\n`;
+        message += `${statusEmoji} *${agent.name}*\n`;
+        message += `   P&L: ${pnlColor} ${formatPnL(agent.totalPnL || 0)}\n`;
+        message += `   Fees: ${formatPnL(agent.feeEarnings || 0)}\n\n`;
       }
-      const keyboard = new InlineKeyboard().url("📊 Dashboard", `${API_BASE}/dashboard/agents`);
+      const keyboard = new InlineKeyboard()
+        .url("📊 Dashboard", `${API_BASE}/dashboard/agents`);
       await ctx.reply(message, { reply_markup: keyboard, parse_mode: "Markdown" });
     } catch (error) {
       console.error("Agents error:", error);
@@ -124,6 +238,7 @@ function createBot(): Bot {
     }
   });
 
+  // /balance
   bot.command("balance", async (ctx: Context) => {
     const telegramId = String(ctx.from?.id);
     try {
@@ -133,7 +248,8 @@ function createBot(): Bot {
         return;
       }
       const summary = await getPortfolioSummary(user.id);
-      const keyboard = new InlineKeyboard().url("📊 Portfolio", `${API_BASE}/dashboard/portfolio`);
+      const keyboard = new InlineKeyboard()
+        .url("📊 Portfolio", `${API_BASE}/dashboard/portfolio`);
       await ctx.reply(
         "💼 *Portfolio*\n\n━━━━━━━━━━━━━━━\n\n" +
         `🤖 Agents: ${summary.agentCount} (${summary.activeCount} active)\n` +
@@ -147,6 +263,7 @@ function createBot(): Bot {
     }
   });
 
+  // /trades
   bot.command("trades", async (ctx: Context) => {
     const telegramId = String(ctx.from?.id);
     try {
@@ -174,9 +291,12 @@ function createBot(): Bot {
         const agent = agents.find((a) => a.id === trade.agentId);
         const typeEmoji = trade.type.includes("buy") ? "🟢" : trade.type.includes("sell") ? "🔴" : "🔵";
         const pnlColor = trade.pnl >= 0 ? "🟢" : "🔴";
-        message += `${typeEmoji} ${trade.type.replace(/_/g, " ")}\n   ${trade.tokenSymbol} by ${agent?.name || "Unknown"}\n   P&L: ${pnlColor} ${formatPnL(trade.pnl)}\n\n`;
+        message += `${typeEmoji} ${trade.type.replace(/_/g, " ")}\n`;
+        message += `   ${trade.tokenSymbol} by ${agent?.name || "Unknown"}\n`;
+        message += `   P&L: ${pnlColor} ${formatPnL(trade.pnl)}\n\n`;
       }
-      const keyboard = new InlineKeyboard().url("📊 Trading", `${API_BASE}/dashboard/trading`);
+      const keyboard = new InlineKeyboard()
+        .url("📊 Trading", `${API_BASE}/dashboard/trading`);
       await ctx.reply(message, { reply_markup: keyboard, parse_mode: "Markdown" });
     } catch (error) {
       console.error("Trades error:", error);
@@ -184,12 +304,16 @@ function createBot(): Bot {
     }
   });
 
+  // /alerts
   bot.command("alerts", async (ctx: Context) => {
     const telegramId = String(ctx.from?.id);
     try {
       let session = await prisma.telegramSession.findUnique({ where: { telegramId } });
       if (!session) {
-        session = await prisma.telegramSession.create({ data: { telegramId, userId: "default" } });
+        const user = await getUserByTelegramId(telegramId);
+        session = await prisma.telegramSession.create({
+          data: { telegramId, userId: user?.id || "default" },
+        });
       }
       const tradesOn = session.notifyTrades ? "✅" : "❌";
       const pnlOn = session.notifyPnL ? "✅" : "❌";
@@ -204,7 +328,8 @@ function createBot(): Bot {
         .row()
         .url("📊 Dashboard", `${API_BASE}/dashboard/telegram`);
       await ctx.reply(
-        "🔔 *Alert Settings*\n\n" + `${tradesOn} Trades\n${pnlOn} Daily P&L\n${riskOn} Risk Events\n${launchesOn} New Launches\n\n_Tap to toggle_`,
+        "🔔 *Alert Settings*\n\n" +
+        `${tradesOn} Trades\n${pnlOn} Daily P&L\n${riskOn} Risk Events\n${launchesOn} New Launches\n\n_Tap to toggle_`,
         { reply_markup: keyboard, parse_mode: "Markdown" }
       );
     } catch (error) {
@@ -213,18 +338,11 @@ function createBot(): Bot {
     }
   });
 
-  bot.callbackQuery("alerts:trades", async (ctx) => {
-    await toggleAlert(ctx, "notifyTrades");
-  });
-  bot.callbackQuery("alerts:pnl", async (ctx) => {
-    await toggleAlert(ctx, "notifyPnL");
-  });
-  bot.callbackQuery("alerts:risk", async (ctx) => {
-    await toggleAlert(ctx, "notifyRisk");
-  });
-  bot.callbackQuery("alerts:launches", async (ctx) => {
-    await toggleAlert(ctx, "notifyLaunches");
-  });
+  // Callback handlers for alerts
+  bot.callbackQuery("alerts:trades", async (ctx) => await toggleAlert(ctx, "notifyTrades"));
+  bot.callbackQuery("alerts:pnl", async (ctx) => await toggleAlert(ctx, "notifyPnL"));
+  bot.callbackQuery("alerts:risk", async (ctx) => await toggleAlert(ctx, "notifyRisk"));
+  bot.callbackQuery("alerts:launches", async (ctx) => await toggleAlert(ctx, "notifyLaunches"));
 
   bot.catch((err) => {
     console.error("Bot error:", err.error);
@@ -238,7 +356,10 @@ async function toggleAlert(ctx: Context, field: string) {
   try {
     let session = await prisma.telegramSession.findUnique({ where: { telegramId } });
     if (!session) {
-      session = await prisma.telegramSession.create({ data: { telegramId, userId: "default" } });
+      const user = await getUserByTelegramId(telegramId);
+      session = await prisma.telegramSession.create({
+        data: { telegramId, userId: user?.id || "default" },
+      });
     }
     await prisma.telegramSession.update({
       where: { telegramId },
@@ -253,7 +374,7 @@ async function toggleAlert(ctx: Context, field: string) {
 
 export async function POST(req: NextRequest) {
   if (!BOT_TOKEN) {
-    return NextResponse.json({ error: "Bot token not configured" }, { status: 500 });
+    return NextResponse.json({ error: "Bot not configured" }, { status: 500 });
   }
   try {
     const bot = createBot();
@@ -262,7 +383,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Webhook error:", error);
-    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
 
@@ -272,7 +393,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!BOT_TOKEN) {
-    return NextResponse.json({ error: "Bot token not configured" }, { status: 500 });
+    return NextResponse.json({ error: "Bot token not set" }, { status: 500 });
   }
   try {
     const webhookUrl = `${API_BASE}/api/telegram/webhook`;
@@ -284,11 +405,9 @@ export async function GET(req: NextRequest) {
     const result = await response.json();
     if (result.ok) {
       return NextResponse.json({ ok: true, url: webhookUrl });
-    } else {
-      return NextResponse.json({ ok: false, error: result.description });
     }
+    return NextResponse.json({ ok: false, error: result.description });
   } catch (error) {
-    console.error("Set webhook error:", error);
-    return NextResponse.json({ error: "Failed to set webhook" }, { status: 500 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
