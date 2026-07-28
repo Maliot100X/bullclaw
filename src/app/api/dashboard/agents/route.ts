@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getAgents } from '@/lib/data-source';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const result = await getAgents();
     return NextResponse.json({ success: true, ...result });
