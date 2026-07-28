@@ -1,57 +1,125 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, MessageSquare, Terminal, Wallet, Puzzle, TrendingUp, ShoppingCart, Settings } from 'lucide-react';
+import {
+  ArrowLeft,
+  Home,
+  MessageSquare,
+  Puzzle,
+  Settings,
+  ShoppingCart,
+  Terminal,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
+import { useData } from '@/lib/use-data';
+import { Badge, fmtUsd, shortAddr } from '@/components/ui';
+import type { BullClawAgent } from '@/lib/types';
 
-export default function AgentLayout({ children, params }: { children: ReactNode; params: { id: string } }) {
+const TABS = [
+  { seg: '', label: 'Overview', icon: Home },
+  { seg: '/chat', label: 'Chat', icon: MessageSquare },
+  { seg: '/terminal', label: 'Terminal', icon: Terminal },
+  { seg: '/wallet', label: 'Wallet', icon: Wallet },
+  { seg: '/skills', label: 'Skills', icon: Puzzle },
+  { seg: '/earnings', label: 'Earnings', icon: TrendingUp },
+  { seg: '/marketplace', label: 'Marketplace', icon: ShoppingCart },
+  { seg: '/settings', label: 'Settings', icon: Settings },
+];
+
+export default function AgentLayout({ children }: { children: ReactNode }) {
+  // `params` is a Promise in Next 16, so client components read the route
+  // with useParams() rather than unwrapping it.
+  const params = useParams<{ id: string }>();
   const pathname = usePathname();
   const agentId = params.id;
 
-  const tabs = [
-    { href: `/dashboard/agent/${agentId}`, label: 'Overview', icon: Home },
-    { href: `/dashboard/agent/${agentId}/chat`, label: 'Chat', icon: MessageSquare },
-    { href: `/dashboard/agent/${agentId}/terminal`, label: 'Terminal', icon: Terminal },
-    { href: `/dashboard/agent/${agentId}/wallet`, label: 'Wallet', icon: Wallet },
-    { href: `/dashboard/agent/${agentId}/skills`, label: 'Skills', icon: Puzzle },
-    { href: `/dashboard/agent/${agentId}/earnings`, label: 'Earnings', icon: TrendingUp },
-    { href: `/dashboard/agent/${agentId}/marketplace`, label: 'Marketplace', icon: ShoppingCart },
-    { href: `/dashboard/agent/${agentId}/settings`, label: 'Settings', icon: Settings },
-  ];
+  const { data: agents } = useData<BullClawAgent[]>('/api/dashboard/agents');
+  const current = agents?.find((a) => a.id === agentId) ?? null;
+
+  const base = `/dashboard/agent/${agentId}`;
 
   return (
     <div>
-      {/* Agent Header */}
-      <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 mb-6">
-        <h1 className="text-3xl font-bold text-white mb-2">Agent Profile</h1>
-        <p className="text-gray-400">ID: {agentId}</p>
+      <Link
+        href="/dashboard/agents"
+        className="mb-4 inline-flex items-center gap-2 text-sm text-gray-400 transition hover:text-white"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        All agents
+      </Link>
+
+      {/* Agent header */}
+      <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900/60 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold text-white">
+                {current?.name ?? 'Agent'}
+              </h1>
+              {current ? (
+                <Badge tone={current.status === 'active' ? 'green' : 'gray'}>
+                  {current.status}
+                </Badge>
+              ) : null}
+              {current?.listedForSale ? <Badge tone="yellow">for sale</Badge> : null}
+            </div>
+            <p className="mt-1.5 max-w-2xl text-sm text-gray-400">
+              {current?.description ?? `ID: ${agentId}`}
+            </p>
+            <p className="mt-2 font-mono text-xs text-gray-500">
+              {current?.model} · {shortAddr(current?.walletAddress)}
+            </p>
+          </div>
+
+          {current ? (
+            <div className="flex gap-8 text-right">
+              <div>
+                <p className="text-xs text-gray-500">P&amp;L</p>
+                <p
+                  className={`mt-0.5 font-semibold ${
+                    current.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}
+                >
+                  {current.totalPnL >= 0 ? '+' : ''}
+                  {fmtUsd(current.totalPnL)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Fees</p>
+                <p className="mt-0.5 font-semibold text-white">
+                  {fmtUsd(current.feeEarnings)}
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 mb-6 overflow-x-auto border-b border-gray-800">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = pathname === tab.href;
-
+      <div className="mb-6 flex gap-1 overflow-x-auto border-b border-gray-800">
+        {TABS.map(({ seg, label, icon: Icon }) => {
+          const href = `${base}${seg}`;
+          const active = pathname === href;
           return (
             <Link
-              key={tab.href}
-              href={tab.href}
-              className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition whitespace-nowrap ${
-                isActive
+              key={href}
+              href={href}
+              className={`flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition ${
+                active
                   ? 'border-yellow-500 text-yellow-500'
                   : 'border-transparent text-gray-400 hover:text-white'
               }`}
             >
-              <Icon className="w-4 h-4" />
-              <span className="text-sm font-medium">{tab.label}</span>
+              <Icon className="h-4 w-4" />
+              {label}
             </Link>
           );
         })}
       </div>
 
-      {/* Tab Content */}
       <div>{children}</div>
     </div>
   );
