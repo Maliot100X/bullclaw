@@ -1,6 +1,10 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-bull: #ffb81c;
+  --color-claw: #1a1a1a;
+  --color-ansem: #8b5cf6;
+}
 
 * {
   margin: 0;
@@ -17,14 +21,8 @@ body {
   color: #ffffff;
 }
 
-.container {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
 .gradient-bull {
-  background: linear-gradient(135deg, #FFB81C 0%, #FFA500 100%);
+  background: linear-gradient(135deg, #ffb81c 0%, #ffa500 100%);
 }
 
 .gradient-claw {
@@ -32,5 +30,24 @@ body {
 }
 
 .gradient-ansem {
-  background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+}
+
+/* Dark scrollbars so panels don't get bright native bars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #262626;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #383838;
 }
