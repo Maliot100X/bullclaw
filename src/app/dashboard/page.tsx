@@ -1,238 +1,169 @@
-'use client';
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-import Link from 'next/link';
-import {
-  Activity,
-  ArrowUpRight,
-  DollarSign,
-  Sparkles,
-  TrendingUp,
-  Users,
-  Zap,
-} from 'lucide-react';
-import { useData } from '@/lib/use-data';
-import {
-  Badge,
-  Card,
-  CardHeader,
-  DemoBanner,
-  EmptyState,
-  PageHeader,
-  StatCard,
-  fmtUsd,
-  shortAddr,
-} from '@/components/ui';
-import type { BullClawAgent, BullClawTrade } from '@/lib/types';
-
-interface Stats {
-  totalAgents: number;
-  activeAgents: number;
-  totalPnL: number;
-  feeEarnings: number;
-  portfolioValue: number;
-  tradeCount: number;
-  ansemPrice: number;
-  solPrice: number;
+interface DashboardData {
+  stats?: { totalAgents: number; activeAgents: number; totalPnL: number; feeEarnings: number; ansemPrice: number };
+  agents?: any[];
+  error?: string;
 }
 
-const TRADE_TONE = {
-  spot_buy: 'green',
-  spot_sell: 'yellow',
-  perp_long: 'blue',
-  perp_short: 'purple',
-  perp_close: 'gray',
-} as const;
+const QUICK_ACTIONS = [
+  { href: "/dashboard/builder", label: "Create Agent", icon: "🤖", color: "#FFB81C" },
+  { href: "/dashboard/trading", label: "View Trading", icon: "📊", color: "#00d4ff" },
+  { href: "/dashboard/marketplace", label: "Marketplace", icon: "🛒", color: "#a78bfa" },
+  { href: "/dashboard/portfolio", label: "Portfolio", icon: "💼", color: "#00ff88" },
+];
 
 export default function DashboardHome() {
-  const stats = useData<Stats>('/api/dashboard/stats');
-  const agents = useData<BullClawAgent[]>('/api/dashboard/agents');
-  const trades = useData<BullClawTrade[]>('/api/dashboard/trades');
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  if (stats.loading) {
-    return <p className="text-sm text-gray-500">Loading dashboard…</p>;
-  }
+  useEffect(() => {
+    const token = localStorage.getItem("bullclaw_token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
 
-  if (stats.error) {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    fetch("/api/dashboard/stats", { headers })
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) {
+          // Demo mode - show placeholder data
+          setData({
+            stats: { totalAgents: 0, activeAgents: 0, totalPnL: 0, feeEarnings: 0, ansemPrice: 0.000337 },
+            agents: []
+          });
+        } else {
+          setData(d);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        setData({
+          stats: { totalAgents: 0, activeAgents: 0, totalPnL: 0, feeEarnings: 0, ansemPrice: 0.000337 },
+          agents: []
+        });
+        setLoading(false);
+      });
+  }, [router]);
+
+  if (loading) {
     return (
-      <Card className="p-6">
-        <p className="text-sm text-red-400">Failed to load stats: {stats.error}</p>
-      </Card>
+      <div style={{ textAlign: "center", padding: "80px 0", color: "#6b6b8a" }}>
+        Loading dashboard...
+      </div>
     );
   }
 
-  const s = stats.data!;
-  const recent = (trades.data ?? []).slice(0, 5);
+  const { stats, agents = [] } = data || { stats: { totalAgents: 0, activeAgents: 0, totalPnL: 0, feeEarnings: 0, ansemPrice: 0 }, agents: [] };
+
+  const STAT_CARDS = [
+    { label: "Total Agents", value: stats?.totalAgents ?? 0, color: "#FFB81C" },
+    { label: "Active Agents", value: stats?.activeAgents ?? 0, color: "#00ff88" },
+    { label: "Total P&L", value: `${(stats?.totalPnL ?? 0) >= 0 ? "+" : ""}${(stats?.totalPnL ?? 0).toFixed(2)} SOL`, color: (stats?.totalPnL ?? 0) >= 0 ? "#00ff88" : "#ff4466" },
+    { label: "Fee Earnings", value: `${(stats?.feeEarnings ?? 0).toFixed(4)} SOL`, color: "#00d4ff" },
+  ];
 
   return (
-    <div className="space-y-6">
-      {stats.demo && stats.notice ? <DemoBanner message={stats.notice} /> : null}
-
-      <PageHeader
-        title="Overview"
-        description={`${s.activeAgents} of ${s.totalAgents} agents active · ${s.tradeCount} trades recorded`}
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={Users}
-          label="My Agents"
-          value={s.totalAgents}
-          accent="text-blue-400"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Total P&L"
-          value={fmtUsd(s.totalPnL)}
-          accent={s.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}
-        />
-        <StatCard
-          icon={DollarSign}
-          label="Fee Earnings"
-          value={fmtUsd(s.feeEarnings)}
-          accent="text-yellow-500"
-        />
-        <StatCard
-          icon={Sparkles}
-          label="$ANSEM Price"
-          value={fmtUsd(s.ansemPrice)}
-          delta={11.4}
-          accent="text-violet-400"
-        />
+    <div>
+      {/* Welcome */}
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: "#e8e8f0", marginBottom: 8 }}>Dashboard</h1>
+        <p style={{ color: "#6b6b8a", fontSize: 14 }}>
+          Manage your BullClaw agents, track performance, and access all features.
+        </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        {/* Agents */}
-        <Card className="lg:col-span-3">
-          <CardHeader
-            title="Your agents"
-            icon={Zap}
-            action={
-              <Link
-                href="/dashboard/agents"
-                className="text-sm font-medium text-yellow-500 hover:text-yellow-400"
-              >
-                View all
-              </Link>
-            }
-          />
-          {(agents.data ?? []).length === 0 ? (
-            <EmptyState
-              icon={Zap}
-              title="No agents yet"
-              description="Create your first agent to start trading autonomously."
-            />
-          ) : (
-            <ul className="divide-y divide-gray-800/70">
-              {(agents.data ?? []).slice(0, 4).map((a) => (
-                <li key={a.id}>
-                  <Link
-                    href={`/dashboard/agent/${a.id}`}
-                    className="flex items-center justify-between px-6 py-4 transition hover:bg-gray-900/60"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate font-medium text-white">{a.name}</span>
-                        <Badge tone={a.status === 'active' ? 'green' : 'gray'}>
-                          {a.status}
-                        </Badge>
-                      </div>
-                      <p className="mt-0.5 truncate text-xs text-gray-500">
-                        {a.template} · {shortAddr(a.walletAddress)}
-                      </p>
-                    </div>
-                    <div className="ml-4 shrink-0 text-right">
-                      <p
-                        className={`font-semibold ${
-                          a.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'
-                        }`}
-                      >
-                        {a.totalPnL >= 0 ? '+' : ''}
-                        {fmtUsd(a.totalPnL)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {fmtUsd(a.feeEarnings)} fees
-                      </p>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        {/* Recent activity */}
-        <Card className="lg:col-span-2">
-          <CardHeader
-            title="Recent activity"
-            icon={Activity}
-            action={
-              <Link
-                href="/dashboard/trading"
-                className="text-sm font-medium text-yellow-500 hover:text-yellow-400"
-              >
-                All trades
-              </Link>
-            }
-          />
-          {recent.length === 0 ? (
-            <EmptyState
-              icon={Activity}
-              title="No activity"
-              description="Trades will appear here once an agent executes."
-            />
-          ) : (
-            <ul className="divide-y divide-gray-800/70">
-              {recent.map((t) => (
-                <li key={t.id} className="flex items-center justify-between px-6 py-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Badge tone={TRADE_TONE[t.type] ?? 'gray'}>
-                        {t.type.replace('_', ' ')}
-                      </Badge>
-                      <span className="truncate text-sm text-white">
-                        {t.tokenSymbol}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {new Date(t.createdAt).toLocaleString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  </div>
-                  <span
-                    className={`ml-3 shrink-0 text-sm font-semibold ${
-                      t.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'
-                    }`}
-                  >
-                    {t.pnl >= 0 ? '+' : ''}
-                    {fmtUsd(t.pnl)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
+        {STAT_CARDS.map(({ label, value, color }) => (
+          <div key={label} className="card" style={{ padding: "24px", textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color, marginBottom: 4 }}>{value}</div>
+            <div style={{ fontSize: 13, color: "#6b6b8a" }}>{label}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Quick start */}
-      <div className="flex flex-wrap items-center justify-between gap-6 rounded-xl gradient-bull p-8 text-black">
+      {/* $ANSEM Price Banner */}
+      <div style={{ background: "#0a0a18", border: "1px solid #FFB81C25", borderRadius: 14, padding: "20px 24px", display: "flex", alignItems: "center", gap: 24, marginBottom: 32 }}>
         <div>
-          <h3 className="text-xl font-bold">Deploy another agent</h3>
-          <p className="mt-1 max-w-md text-sm opacity-80">
-            Fork a template, tune the persona and risk limits, and it starts trading
-            from its own non-custodial wallet.
-          </p>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#FFB81C", letterSpacing: "0.08em", marginBottom: 6 }}>$ANSEM PRICE</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#FFB81C" }}>${stats?.ansemPrice?.toFixed(6) ?? "0.000337"}</div>
         </div>
-        <Link
-          href="/dashboard/builder"
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-black px-5 py-2.5 font-semibold text-yellow-500 transition hover:bg-gray-900"
-        >
-          Open builder
-          <ArrowUpRight className="h-4 w-4" />
-        </Link>
+        <div style={{ height: 40, width: 1, background: "#1e1e3a" }} />
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#00ff88", marginBottom: 4 }}>24H CHANGE</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#00ff88" }}>+11.4%</div>
+        </div>
+        <div style={{ marginLeft: "auto" }}>
+          <Link href="/dashboard/trading" style={{ padding: "8px 16px", background: "#FFB81C20", border: "1px solid #FFB81C40", color: "#FFB81C", borderRadius: 8, textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
+            View Trading →
+          </Link>
+        </div>
+      </div>
+
+      {/* Agents Section */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#e8e8f0" }}>Your Agents</h2>
+          <Link href="/dashboard/builder" style={{ fontSize: 13, color: "#FFB81C", textDecoration: "none", fontWeight: 600 }}>
+            + Create New →
+          </Link>
+        </div>
+
+        {agents.length === 0 ? (
+          <div className="card" style={{ padding: "48px", textAlign: "center" }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>🤖</div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#e8e8f0", marginBottom: 8 }}>No agents yet</h3>
+            <p style={{ color: "#6b6b8a", marginBottom: 20 }}>Create your first BullClaw agent to start trading on Solana.</p>
+            <Link href="/dashboard/builder" style={{ padding: "10px 20px", background: "linear-gradient(135deg, #FFB81C, #f0a000)", color: "#000", borderRadius: 8, textDecoration: "none", fontWeight: 700, fontSize: 14 }}>
+              Create Your First Agent
+            </Link>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
+            {agents.slice(0, 4).map((agent: any) => (
+              <Link key={agent.id} href={`/dashboard/agent/${agent.id}`} style={{ textDecoration: "none" }}>
+                <div className="card" style={{ padding: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                    <div>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: "#e8e8f0", marginBottom: 4 }}>{agent.name}</h3>
+                      <span className="badge" style={{ fontSize: 10, padding: "2px 8px", background: "#00ff8820", color: "#00ff88", border: "1px solid #00ff8840", borderRadius: 99 }}>{agent.status}</span>
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: agent.totalPnL >= 0 ? "#00ff88" : "#ff4466" }}>
+                      {agent.totalPnL >= 0 ? "+" : ""}{agent.totalPnL.toFixed(2)}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6b6b8a" }}>
+                    {agent.template} · {agent.walletAddress?.slice(0, 8)}...
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: "#e8e8f0", marginBottom: 16 }}>Quick Actions</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          {QUICK_ACTIONS.map(({ href, label, icon, color }) => (
+            <Link key={href} href={href} style={{ textDecoration: "none" }}>
+              <div className="card" style={{ padding: 20, textAlign: "center", cursor: "pointer" }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>{icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color }}>{label}</div>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
