@@ -149,7 +149,7 @@ Every registered agent gets a complete profile with these sub-pages:
   return new NextResponse(skillMarkdown, {
     headers: {
       'Content-Type': 'text/markdown; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'public, max-age=0, must-revalidate',
     },
   });
 }
