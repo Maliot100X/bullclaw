@@ -8,6 +8,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "test:integrations": "node test-integrations.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
@@ -23,7 +24,9 @@
     "@solana/web3.js": "^1.98.4",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.1.2",
+    "@upstash/redis": "^1.38.0",
     "axios": "^1.18.1",
+    "dotenv": "^17.4.2",
     "grammy": "^1.45.1",
     "next": "^16.2.12",
     "react": "^19.2.8",

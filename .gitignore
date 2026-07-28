@@ -42,3 +42,4 @@ lerna-debug.log*
 # Testing
 .coverage/
 .nyc_output/
+deploy-env-vars.sh
