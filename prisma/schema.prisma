@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String   @id @default(cuid())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  wallet               String?  @unique
+  telegramId           String?  @unique
+  telegramUsername     String?
+
+  encryptedClawpumpKey String?
+  encryptedHeliusKey   String?
+  encryptedOpenAIKey   String?
+  encryptedAnthropicKey String?
+
+  ansemHolder          Boolean  @default(false)
+  riskLevel            String   @default("medium") // low, medium, high
+
+  agents               Agent[]
+  skills               UserSkill[]
+  auditLogs            AuditLog[]
+  sessions             Session[]
+
+  @@index([wallet])
+  @@index([telegramId])
+}
+
+model Session {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  expiresAt         DateTime
+
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token             String   @unique
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Agent {
+  id                     String   @id @default(cuid())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  userId                 String
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  clawpumpAgentId        String?  @unique
+  walletAddress          String?  @unique
+
+  name                   String
+  persona                String   @db.Text
+  model                  String   @default("claude-sonnet-4-6")
+  template               String   // "ansem-trader", "perps-sniper", "memecoin-launcher", "portfolio-manager", "custom"
+
+  avatar                 String?
+  description            String?  @db.Text
+
+  skillsJson             String   @default("[]") // JSON array of skill IDs
+
+  status                 String   @default("active") // "active", "paused", "deleted"
+
+  totalPnL               Float    @default(0.0)
+  feeEarnings            Float    @default(0.0)
+
+  listedForSale          Boolean  @default(false)
+  salePrice              Float?
+
+  publicShareLink        String?  @unique
+
+  trades                 Trade[]
+  auditLogs              AuditLog[]
+
+  @@index([userId])
+  @@index([clawpumpAgentId])
+  @@index([walletAddress])
+  @@index([status])
+}
+
+model Trade {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+
+  agentId           String
+  agent             Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  type              String   // "spot_buy", "spot_sell", "perp_long", "perp_short", "perp_close"
+  tokenMint         String
+  tokenSymbol       String
+
+  inputAmount       Float
+  outputAmount      Float
+  executedPrice     Float
+  fee               Float
+
+  pnl               Float
+
+  txSignature       String?
+
+  @@index([agentId])
+  @@index([createdAt])
+}
+
+model UserSkill {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  skillId           String
+  skillName         String
+  source            String   // "clawpump", "solana", "helius", "custom"
+  enabled           Boolean  @default(true)
+  config            String?  @db.Text // JSON config
+
+  @@unique([userId, skillId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  agentId           String?
+  agent             Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  action            String   // "user_registered", "agent_created", "trade_executed", "skill_installed", "marketplace_action"
+  details           String   @db.Text // JSON
+
+  @@index([userId])
+  @@index([agentId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model PlatformConfig {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  key               String   @unique
+  value             String   @db.Text
+}
