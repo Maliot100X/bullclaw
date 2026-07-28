@@ -14,9 +14,32 @@ BullClaw is a production platform where users create real ClawPump agents (with 
 - Marketplace + analytics + earnings tracking
 - Self-registration via `/skill.md` for Hermes/Claw Agents
 
+## Features
+
+### Dashboard
+- **Home**: Overview of all agents, total P&L, recent activity
+- **My Agents**: List of all owned agents with status and quick actions
+- **Agent Builder**: Create new agents with templates, skills, and model selection
+- **Marketplace**: Browse, bid, buy, and list ClawPump agents
+- **Trading**: Unified terminal for Jupiter spot and Phoenix perps
+- **Skills Registry**: Install and manage skills from multiple sources
+- **Portfolio**: Multi-agent performance tracking and fee earnings
+- **Telegram**: Link status and notification settings
+- **Settings**: User preferences and API key management
+
+### Per-Agent Profile
+- **Overview**: Status, P&L, wallet summary
+- **Chat**: Talk to the agent in natural language
+- **Terminal**: Live trading feed and command interface
+- **Wallet**: Balances with Solscan link
+- **Skills**: Attached skills with enable/disable toggle
+- **Earnings**: 65% fee share history
+- **Marketplace**: List agent for sale, view bids
+- **Settings**: Persona, model, risk parameters
+
 ## Tech Stack
 
-- **Frontend**: Next.js 15, TypeScript, Tailwind CSS, Framer Motion, Recharts
+- **Frontend**: Next.js 15, TypeScript, Tailwind CSS v4, Framer Motion, Recharts
 - **Backend**: Next.js App Router, Server Actions
 - **Database**: Prisma + Neon Postgres
 - **Cache**: Upstash Redis (one-time codes, rate limiting)
@@ -27,7 +50,7 @@ BullClaw is a production platform where users create real ClawPump agents (with 
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - npm or pnpm
 - PostgreSQL database (Neon recommended)
 - Real API keys (see `.env.example`)
@@ -74,6 +97,20 @@ Server runs on `http://localhost:3000`
 - `npm run prisma:migrate` — Run migrations (interactive)
 - `npm run prisma:studio` — Open Prisma Studio
 
+## Agent Registration (skill.md)
+
+Hermes and Claw Agents can self-register by installing the BullClaw skill:
+
+```bash
+hermes skills install https://your-domain.com/skill.md
+```
+
+After installation, the agent receives:
+- Full agent profile URL
+- Dashboard URLs (chat, terminal, wallet, etc.)
+- Session token for authenticated API access
+- Marketplace listing capability
+
 ## Vercel Deployment
 
 This project is fully Vercel-compatible.
@@ -96,6 +133,7 @@ ANSEM_WALLET
 CLAW_MINT
 NEXT_PUBLIC_RPC_URL
 NEXT_PUBLIC_ANSEM_MINT
+NEXT_PUBLIC_BASE_URL (your deployment URL)
 NODE_ENV=production
 ```
 
@@ -112,29 +150,54 @@ Or connect GitHub repo to Vercel for automatic deployments on push.
 This project follows a strict 13-phase build order:
 
 1. ✅ **Phase 1**: Project scaffold + Prisma schema + basic layout + wallet adapter
-2. **Phase 2**: Auth + registration (wallet + Telegram + one-time codes)
-3. **Phase 3**: Real ClawPump client
-4. **Phase 4**: Top-level navigation + My Agents + Agent Profile page structure
-5. **Phase 5**: Agent Builder → deploys real ClawPump agent
-6. **Phase 6**: Complete Skills Registry
-7. **Phase 7**: Trading Terminal (Jupiter spot)
-8. **Phase 8**: Phoenix Perps
-9. **Phase 9**: Ansem utility features
-10. **Phase 10**: Marketplace UI
+2. ✅ **Phase 2**: Auth + registration (wallet + Telegram + one-time codes)
+3. ✅ **Phase 3**: Real ClawPump client
+4. ✅ **Phase 4**: Top-level navigation + My Agents + Agent Profile page structure
+5. ✅ **Phase 5**: Agent Builder → deploys real ClawPump agent
+6. ✅ **Phase 6**: Complete Skills Registry (ClawPump, Solana, Helius, custom)
+7. **Phase 7**: Trading Terminal (Jupiter spot) - requires Helius API key
+8. **Phase 8**: Phoenix Perps via ClawPump
+9. ✅ **Phase 9**: Ansem utility features (wallet tracker, X signals, utility)
+10. **Phase 10**: Marketplace (real ClawPump marketplace)
 11. **Phase 11**: Full Telegram bot with feature parity
 12. **Phase 12**: Portfolio, analytics, earnings
 13. **Phase 13**: End-to-end testing + security review
+
+## Skills Registry
+
+BullClaw supports skills from multiple sources:
+
+### Built-in Skills
+- `clawpump.trade` - ClawPump spot trading
+- `clawpump.perps` - Phoenix perpetuals
+- `clawpump.launches` - Launch radar for new tokens
+- `helius.tx-stream` - Real-time transaction stream
+- `helius.price-feed` - Low-latency pricing
+- `solana.jupiter-swap` - Jupiter aggregation
+- `solana.rug-check` - Rug detection
+
+### Custom Ansem Skills
+- `ansem-wallet-tracker` - Track $ANSEM positions
+- `ansem-x-signals` - Social sentiment analysis
+- `ansem-utility` - Holder benefits verification
+
+### Skill Installation
+
+Access skills at:
+- `/api/skills/ansem-wallet-tracker.md`
+- `/api/skills/ansem-x-signals.md`
+- `/api/skills/ansem-utility.md`
 
 ## Database Schema
 
 All models defined in `prisma/schema.prisma`:
 
 - **User** — Wallet + Telegram + encrypted API keys + $ANSEM holder status
-- **Session** — Auth sessions
+- **Session** — Auth sessions with expiry
 - **Agent** — BullClaw agent profiles with full ClawPump integration
 - **Trade** — Spot + perp trade execution history
-- **UserSkill** — Installed skills per user
-- **AuditLog** — Immutable audit trail
+- **UserSkill** — Installed skills per user with enable/disable
+- **AuditLog** — Immutable audit trail for all actions
 - **PlatformConfig** — Platform settings
 
 ## Security
@@ -146,6 +209,7 @@ All models defined in `prisma/schema.prisma`:
 - ✅ Rate limiting via Upstash Redis
 - ✅ Request signing (agent ↔ backend)
 - ✅ No platform admin can move user funds
+- ✅ Non-custodial wallets per agent
 
 ## API Keys Required
 

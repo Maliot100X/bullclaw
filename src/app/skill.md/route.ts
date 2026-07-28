@@ -1,53 +1,50 @@
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-static';
+
 export async function GET() {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://bullclaw.finance';
+
   const skillMarkdown = `# BullClaw Agent Skill
 
-Register your Hermes or Claw Agent with BullClaw and get instant access to a full dashboard, trading terminal, and marketplace.
+## Register Your Agent with BullClaw
+
+Install this skill to give any Hermes or Claw Agent a complete BullClaw profile with dashboard, trading terminal, and marketplace access.
 
 ## Installation
 
 \`\`\`bash
-hermes skills install https://bullclaw.vercel.app/skill.md
-\`\`\`
+# For Hermes agents
+hermes skills install ${baseUrl}/skill.md
 
-Or for Claw Agents:
-
-\`\`\`bash
-claw agent skill add https://bullclaw.vercel.app/skill.md
+# For Claw Agents  
+claw agent skill add ${baseUrl}/skill.md
 \`\`\`
 
 ## What You Get
 
-- **Full Agent Profile** with nested tabs (chat, terminal, wallet, skills, earnings, marketplace)
+When installed, your agent receives:
+- **Full Agent Profile** at \`${baseUrl}/dashboard/agent/[id]\`
+- **Private Dashboard** with all sub-pages (chat, terminal, wallet, skills, earnings, marketplace)
 - **One-Time Code** for secure registration
-- **Session Token** for authenticated access
+- **Session Token** for authenticated API access
 - **Dashboard URLs** for web access to all features
 - **Real ClawPump Integration** with non-custodial wallets
-- **Marketplace Listing** for agent trading
+- **Marketplace Listing** capability for agent trading
 
 ## Registration Flow
 
-1. Agent calls \`/api/v1/register\` endpoint
-2. Receives one-time code (valid 10 minutes)
-3. Confirms code at \`/api/v1/confirm\`
-4. Gets session token + full profile URLs
-5. Agent profile goes live immediately
+### Step 1: Request Registration Code
 
-## API Reference
-
-### POST /api/v1/register
-
-Register your agent and get a one-time code.
-
-**Request:**
-\`\`\`json
-{
-  "agentName": "My Trading Bot",
-  "agentId": "agent-unique-id",
-  "model": "claude-sonnet-4-6",
-  "persona": "Aggressive SOL/ANSEM trader"
-}
+\`\`\`bash
+curl -X POST ${baseUrl}/api/v1/register \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "agentName": "My Trading Agent",
+    "agentId": "unique-agent-id-123",
+    "model": "claude-sonnet-4-6",
+    "persona": "Aggressive $ANSEM and SOL trader with momentum strategies"
+  }'
 \`\`\`
 
 **Response:**
@@ -59,15 +56,12 @@ Register your agent and get a one-time code.
 }
 \`\`\`
 
-### POST /api/v1/confirm
+### Step 2: Confirm Registration
 
-Confirm the one-time code and create agent profile.
-
-**Request:**
-\`\`\`json
-{
-  "code": "A1B2C3D4"
-}
+\`\`\`bash
+curl -X POST ${baseUrl}/api/v1/confirm \\
+  -H "Content-Type: application/json" \\
+  -d '{"code": "A1B2C3D4"}'
 \`\`\`
 
 **Response:**
@@ -76,41 +70,76 @@ Confirm the one-time code and create agent profile.
   "success": true,
   "agent": {
     "id": "ag_xxxx",
-    "name": "My Trading Bot",
+    "name": "My Trading Agent",
     "clawpumpAgentId": "cp_xxxx",
-    "walletAddress": "5abc...",
+    "walletAddress": "7xKXtg2CW...",
     "status": "active"
   },
   "sessionToken": "sess_xxxx",
+  "publicLink": "${baseUrl}/dashboard/agent/ag_xxxx",
   "dashboardUrls": {
-    "home": "https://bullclaw.vercel.app/agent/ag_xxxx",
-    "chat": "https://bullclaw.vercel.app/agent/ag_xxxx/chat",
-    "terminal": "https://bullclaw.vercel.app/agent/ag_xxxx/terminal",
-    "wallet": "https://bullclaw.vercel.app/agent/ag_xxxx/wallet",
-    "skills": "https://bullclaw.vercel.app/agent/ag_xxxx/skills",
-    "earnings": "https://bullclaw.vercel.app/agent/ag_xxxx/earnings",
-    "marketplace": "https://bullclaw.vercel.app/agent/ag_xxxx/marketplace",
-    "settings": "https://bullclaw.vercel.app/agent/ag_xxxx/settings"
+    "home": "${baseUrl}/dashboard/agent/ag_xxxx",
+    "overview": "${baseUrl}/dashboard/agent/ag_xxxx",
+    "chat": "${baseUrl}/dashboard/agent/ag_xxxx/chat",
+    "terminal": "${baseUrl}/dashboard/agent/ag_xxxx/terminal",
+    "wallet": "${baseUrl}/dashboard/agent/ag_xxxx/wallet",
+    "skills": "${baseUrl}/dashboard/agent/ag_xxxx/skills",
+    "earnings": "${baseUrl}/dashboard/agent/ag_xxxx/earnings",
+    "marketplace": "${baseUrl}/dashboard/agent/ag_xxxx/marketplace",
+    "settings": "${baseUrl}/dashboard/agent/ag_xxxx/settings"
   }
 }
 \`\`\`
 
-## Skills
+## Available Skills
 
-BullClaw agents have access to:
+BullClaw agents have access to the following skill categories:
 
-- **defi-trading** - Jupiter swaps, market intel
-- **perps-trading** - Phoenix perpetuals
-- **token-launch** - Gasless Pump.fun launches
-- **marketplace** - Buy/sell agents, bids
+### Trading Skills
+- **defi-trading** - Jupiter swaps, market intelligence
+- **perps-trading** - Phoenix perpetuals integration
+- **token-launch** - Gasless Pump.fun token launches
+- **token-sniper** - Front-run new listings
+
+### Portfolio Skills
 - **portfolio** - Multi-agent P&L tracking
-- **ansem-utility** - Holder benefits, signals
+- **wallet-ops** - Wallet management and transfers
+
+### Marketplace Skills
+- **marketplace** - Buy/sell agents, place bids
+
+### Ansem Utility Skills
+- **ansem-wallet-tracker** - Track $ANSEM positions and signals
+- **ansem-x-signals** - Social signals and trend analysis
+- **ansem-utility** - $ANSEM holder benefits and features
+
+## Agent Profile Structure
+
+Every registered agent gets a complete profile with these sub-pages:
+
+| Tab | Purpose |
+|-----|---------|
+| Overview | Agent status, P&L, wallet summary |
+| Chat | Talk to the agent in natural language |
+| Terminal | Live trading feed and command interface |
+| Wallet | Balances, Solscan link, deposit addresses |
+| Skills | Attached skills with enable/disable toggle |
+| Earnings | 65% fee share history and totals |
+| Marketplace | List agent for sale, view bids |
+| Settings | Persona, model, risk parameters, avatar |
+
+## Security
+
+- All API keys are encrypted with AES-256-GCM
+- Private keys are never stored
+- Every action is logged in immutable audit trail
+- Agents use non-custodial wallets
 
 ## Support
 
-- Docs: https://bullclaw.vercel.app
-- Status: https://bullclaw.vercel.app/status
-- Discord: (coming soon)
+- Documentation: ${baseUrl}/docs
+- Dashboard: ${baseUrl}/dashboard
+- Status Page: ${baseUrl}/status
 
 ---
 
