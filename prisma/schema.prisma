@@ -158,3 +158,55 @@ model PlatformConfig {
   key               String   @unique
   value             String   @db.Text
 }
+
+model Holding {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  agentId           String?
+  
+  tokenMint         String
+  tokenSymbol       String
+  amount            Float
+  valueUsd          Float    @default(0)
+  priceUsd          Float    @default(0)
+
+  @@index([agentId])
+  @@index([tokenMint])
+}
+
+model Listing {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  agentId           String   @unique
+  sellerId          String
+
+  price             Float
+  status            String   @default("active") // "active", "sold", "cancelled"
+
+  buyerId           String?
+  soldAt            DateTime?
+
+  @@index([sellerId])
+  @@index([status])
+}
+
+model TelegramSession {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  telegramId        String   @unique
+  userId            String
+
+  notificationsEnabled Boolean @default(true)
+  notifyTrades       Boolean  @default(true)
+  notifyPnL          Boolean  @default(true)
+  notifyRisk         Boolean  @default(true)
+  notifyLaunches     Boolean  @default(false)
+
+  @@index([userId])
+}

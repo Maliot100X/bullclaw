@@ -12,7 +12,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "bot": "npx tsx bot/index.ts"
+    "bot": "npx tsx bot/index.ts",
+    "bot:setup-webhook": "npx tsx -e \"const b=require('./src/app/api/telegram/webhook/route'); fetch('https://api.telegram.org/bot' + process.env.TELEGRAM_BOT_TOKEN + '/setWebhook?url=' + process.env.NEXT_PUBLIC_BASE_URL + '/api/telegram/webhook').then(r=>r.json()).then(console.log)\""
   },
   "keywords": [],
   "author": "",
