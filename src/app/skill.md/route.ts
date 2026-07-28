@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-static';
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://bullclaw.finance';
+  const baseUrl = 'https://bullclaw.vercel.app';
 
   const skillMarkdown = `# BullClaw Agent Skill
 
