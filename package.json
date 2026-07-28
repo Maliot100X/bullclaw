@@ -11,7 +11,8 @@
     "test:integrations": "node test-integrations.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "bot": "npx tsx bot/index.ts"
   },
   "keywords": [],
   "author": "",
