@@ -3,80 +3,117 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Zap, Plus, ShoppingCart, BarChart3, Puzzle, TrendingUp, MessageSquare, Settings } from 'lucide-react';
+import {
+  BarChart3,
+  Home,
+  MessageSquare,
+  Plus,
+  Puzzle,
+  Settings,
+  ShoppingCart,
+  TrendingUp,
+  Zap,
+} from 'lucide-react';
+
+const NAV = [
+  { href: '/dashboard', label: 'Home', icon: Home },
+  { href: '/dashboard/agents', label: 'My Agents', icon: Zap },
+  { href: '/dashboard/builder', label: 'Agent Builder', icon: Plus },
+  { href: '/dashboard/marketplace', label: 'Marketplace', icon: ShoppingCart },
+  { href: '/dashboard/trading', label: 'Trading', icon: TrendingUp },
+  { href: '/dashboard/skills', label: 'Skills', icon: Puzzle },
+  { href: '/dashboard/portfolio', label: 'Portfolio', icon: BarChart3 },
+  { href: '/dashboard/telegram', label: 'Telegram', icon: MessageSquare },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+];
+
+/** Derives the topbar heading from the current route. */
+function useTitle(pathname: string): string {
+  if (pathname.startsWith('/dashboard/agent/')) return 'Agent';
+  const match = NAV.find(
+    (n) => n.href !== '/dashboard' && pathname.startsWith(n.href),
+  );
+  return match ? match.label : 'Overview';
+}
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-
-  const navItems = [
-    { href: '/dashboard', label: 'Home', icon: Home },
-    { href: '/dashboard/agents', label: 'My Agents', icon: Zap },
-    { href: '/dashboard/builder', label: 'Agent Builder', icon: Plus },
-    { href: '/dashboard/marketplace', label: 'Marketplace', icon: ShoppingCart },
-    { href: '/dashboard/trading', label: 'Trading', icon: TrendingUp },
-    { href: '/dashboard/skills', label: 'Skills', icon: Puzzle },
-    { href: '/dashboard/portfolio', label: 'Portfolio', icon: BarChart3 },
-    { href: '/dashboard/telegram', label: 'Telegram', icon: MessageSquare },
-    { href: '/dashboard/settings', label: 'Settings', icon: Settings },
-  ];
+  const title = useTitle(pathname);
 
   return (
     <div className="flex h-screen bg-black">
-      {/* Sidebar */}
-      <div className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col">
-        {/* Logo */}
-        <div className="p-6 border-b border-gray-800">
-          <h1 className="text-2xl font-bold text-yellow-500">BullClaw</h1>
-          <p className="text-sm text-gray-400">Finance on Solana</p>
-        </div>
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-gray-800 bg-gray-950 md:flex">
+        <Link
+          href="/"
+          className="flex items-center gap-2 border-b border-gray-800 px-6 py-5 transition hover:bg-gray-900/50"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg gradient-bull text-black">
+            <Zap className="h-4 w-4" />
+          </span>
+          <span>
+            <span className="block font-bold leading-tight text-white">BullClaw</span>
+            <span className="block text-xs text-gray-500">Finance on Solana</span>
+          </span>
+        </Link>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+          {NAV.map(({ href, label, icon: Icon }) => {
+            const active =
+              href === '/dashboard'
+                ? pathname === '/dashboard'
+                : pathname.startsWith(href);
             return (
               <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${
-                  isActive
-                    ? 'bg-yellow-500 bg-opacity-20 text-yellow-500'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                  active
+                    ? 'bg-yellow-500/10 text-yellow-500'
+                    : 'text-gray-400 hover:bg-gray-900 hover:text-white'
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                <span>{item.label}</span>
+                <Icon className="h-4 w-4 shrink-0" />
+                {label}
               </Link>
             );
           })}
         </nav>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-800">
-          <button className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
-            Logout
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
-        <div className="bg-gray-900 border-b border-gray-800 px-8 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-white">Dashboard</h2>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-400">
-              Connected: <span className="text-green-500">mainnet</span>
-            </div>
+        <div className="border-t border-gray-800 p-3">
+          <div className="mb-3 rounded-lg bg-gray-900 px-3 py-2.5">
+            <p className="text-xs text-gray-500">Signed in as</p>
+            <p className="truncate text-sm font-medium text-white">GV6U…VdC52</p>
+            <span className="mt-1 inline-flex items-center rounded-full bg-violet-500/10 px-2 py-0.5 text-xs font-medium text-violet-400 ring-1 ring-inset ring-violet-500/20">
+              $ANSEM holder
+            </span>
           </div>
+          <Link
+            href="/"
+            className="block rounded-lg px-3 py-2 text-center text-sm font-medium text-gray-400 transition hover:bg-gray-900 hover:text-white"
+          >
+            Disconnect
+          </Link>
         </div>
+      </aside>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto bg-black p-8">
-          {children}
-        </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex shrink-0 items-center justify-between border-b border-gray-800 bg-gray-950 px-6 py-4">
+          <h1 className="text-lg font-semibold text-white">{title}</h1>
+          <div className="flex items-center gap-4 text-sm">
+            <span className="hidden items-center gap-2 text-gray-400 sm:flex">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              mainnet
+            </span>
+            <Link
+              href="/dashboard/builder"
+              className="rounded-lg bg-yellow-500 px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-yellow-400"
+            >
+              New agent
+            </Link>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   );
