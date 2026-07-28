@@ -43,3 +43,5 @@ lerna-debug.log*
 .coverage/
 .nyc_output/
 deploy-env-vars.sh
+.vercel
+.env*
