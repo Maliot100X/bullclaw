@@ -15,7 +15,6 @@ export async function POST(request: NextRequest) {
 
     // Verify one-time code
     const otcData = await verifyOneTimeCode(parsed.code);
-
     if (!otcData) {
       return NextResponse.json(
         { error: 'Invalid or expired code' },
@@ -34,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     if (!agentDataValue) {
       return NextResponse.json(
-        { error: 'No agent data found' },
+        { error: 'No agent data found for code' },
         { status: 400 }
       );
     }
@@ -73,7 +72,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: systemUser.id,
         token: sessionToken,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days for agents
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
 
@@ -91,8 +90,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Generate public share link
-    const publicLink = `${process.env.VERCEL_URL || 'https://bullclaw.vercel.app'}/agent/${agent.id}`;
+    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://bullclaw.vercel.app';
 
     return NextResponse.json(
       {
@@ -100,30 +98,30 @@ export async function POST(request: NextRequest) {
         agent: {
           id: agent.id,
           name: agent.name,
-          clawpumpAgentId: agent.clawpumpAgentId,
           walletAddress: agent.walletAddress,
           status: agent.status,
           model: agent.model,
           persona: agent.persona,
         },
         sessionToken,
-        publicLink,
+        publicLink: `${baseUrl}/dashboard/agent/${agent.id}`,
         dashboardUrls: {
-          home: `${process.env.VERCEL_URL || 'https://bullclaw.vercel.app'}/agent/${agent.id}`,
-          overview: `${process.env.VERCEL_URL || 'https://bullclaw.vercel.app'}/agent/${agent.id}/overview`,
-          chat: `${process.env.VERCEL_URL || 'https://bullclaw.vercel.app'}/agent/${agent.id}/chat`,
-          terminal: `${process.env.VERCEL_URL || 'https://bullclaw.vercel.app'}/agent/${agent.id}/terminal`,
-          wallet: `${process.env.VERCEL_URL || 'https://bullclaw.vercel.app'}/agent/${agent.id}/wallet`,
-          skills: `${process.env.VERCEL_URL || 'https://bullclaw.vercel.app'}/agent/${agent.id}/skills`,
-          earnings: `${process.env.VERCEL_URL || 'https://bullclaw.vercel.app'}/agent/${agent.id}/earnings`,
-          marketplace: `${process.env.VERCEL_URL || 'https://bullclaw.vercel.app'}/agent/${agent.id}/marketplace`,
-          settings: `${process.env.VERCEL_URL || 'https://bullclaw.vercel.app'}/agent/${agent.id}/settings`,
+          home: `${baseUrl}/dashboard/agent/${agent.id}`,
+          chat: `${baseUrl}/dashboard/agent/${agent.id}/chat`,
+          terminal: `${baseUrl}/dashboard/agent/${agent.id}/terminal`,
+          wallet: `${baseUrl}/dashboard/agent/${agent.id}/wallet`,
+          skills: `${baseUrl}/dashboard/agent/${agent.id}/skills`,
+          earnings: `${baseUrl}/dashboard/agent/${agent.id}/earnings`,
+          marketplace: `${baseUrl}/dashboard/agent/${agent.id}/marketplace`,
+          settings: `${baseUrl}/dashboard/agent/${agent.id}/settings`,
         },
-        expiresIn: 2592000, // 30 days in seconds
+        expiresIn: 2592000,
       },
       { status: 201 }
     );
   } catch (error: any) {
+    console.error('Confirmation error:', error);
+    
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid request', details: error.issues },
@@ -131,9 +129,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error('Confirmation error:', error);
     return NextResponse.json(
-      { error: 'Confirmation failed' },
+      { error: 'Confirmation failed', details: error.message },
       { status: 500 }
     );
   }
