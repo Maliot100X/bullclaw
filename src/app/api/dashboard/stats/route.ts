@@ -26,18 +26,17 @@ export async function GET(req: NextRequest) {
     const feeEarnings = agents.reduce((sum, a) => sum + (a.feeEarnings || 0), 0);
     const activeAgents = agents.filter(a => a.status === "active").length;
 
-    // Get $ANSEM price from Helius
+    // Get $ANSEM price from Jupiter Price API
     let ansemPrice = 0.000337;
     try {
-      const heliusKey = process.env.HELIUS_API_KEY;
-      if (heliusKey) {
-        const res = await fetch(`https://api.helius.xyz/v0/token_metadata?api-key=${heliusKey}&addresses=${ANSEM_MINT}`, { cache: "no-store" });
-        const data = await res.json();
-        if (data?.[0]?.priceInfo?.pricePerToken) {
-          ansemPrice = data[0].priceInfo.pricePerToken / 1000000000;
-        }
+      const res = await fetch(`https://api.jup.ag/price/v2?ids=${ANSEM_MINT}`, { cache: "no-store" });
+      const data = await res.json();
+      if (data?.data?.[ANSEM_MINT]?.price) {
+        ansemPrice = data.data[ANSEM_MINT].price;
       }
-    } catch {}
+    } catch {
+      console.log("Failed to fetch ANSEM price from Jupiter");
+    }
 
     return NextResponse.json({
       totalAgents: agents.length,

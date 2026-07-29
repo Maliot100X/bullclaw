@@ -111,3 +111,47 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "Failed to delete agent" }, { status: 500 });
   }
 }
+
+// Chat message handler (for AI integration placeholder)
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    
+    const session = await prisma.session.findUnique({ where: { token } });
+    if (!session) return NextResponse.json({ error: "Session expired" }, { status: 401 });
+    
+    const agent = await prisma.agent.findFirst({
+      where: { id, userId: session.userId },
+    });
+    
+    if (!agent) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    
+    const body = await req.json();
+    const { message } = body;
+    
+    // Log the interaction
+    await prisma.auditLog.create({
+      data: {
+        agentId: id,
+        userId: session.userId,
+        action: 'chat_message',
+        details: JSON.stringify({ message: message?.substring(0, 500) }),
+      },
+    });
+    
+    // Return placeholder response
+    return NextResponse.json({
+      response: `Message received by ${agent.name}. AI integration coming soon.`,
+      agent: {
+        id: agent.id,
+        name: agent.name,
+        status: agent.status,
+      },
+    });
+  } catch (error) {
+    console.error("Chat error:", error);
+    return NextResponse.json({ error: "Failed to process message" }, { status: 500 });
+  }
+}

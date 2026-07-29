@@ -144,7 +144,8 @@ export async function POST(req: NextRequest) {
       const setting = text.replace("/alerts ", "").trim();
       const settings = await prisma.telegramSession.findUnique({ where: { telegramId: chatId } });
       if (!setting) {
-        let alerts = `🔔 *Settings*\n\nStatus: *${settings?.notificationsEnabled ? 'ON' : 'OFF'}*\n\n/alerts on - Enable\n/alerts off - Disable\n/alerts trades - Trade alerts\n/alerts pnl - P&L alerts`;
+        const notificationsOn = settings?.notificationsEnabled ?? true;
+        let alerts = `🔔 *Settings*\n\nStatus: *${notificationsOn ? 'ON' : 'OFF'}*\n\n/alerts on - Enable\n/alerts off - Disable\n/alerts trades - Trade alerts\n/alerts pnl - P&L alerts`;
         await sendMessage(chatId, alerts);
       } else if (setting === "on" || setting === "off") {
         await prisma.telegramSession.upsert({

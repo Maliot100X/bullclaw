@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import crypto from "crypto";
-
-function encrypt(text: string): string {
-  const key = process.env.ENCRYPTION_KEY;
-  if (!key) return text;
-  const iv = crypto.randomBytes(16);
-  const cipherKey = crypto.createHash("sha256").update(key).digest();
-  const cipher = crypto.createCipheriv("aes-256-gcm", cipherKey, iv);
-  let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  return `${iv.toString("hex")}:${cipher.getAuthTag().toString("hex")}:${encrypted}`;
-}
+import { encryptApiKey } from "@/lib/crypto";
 
 export async function GET(req: NextRequest) {
   try {
@@ -44,14 +33,15 @@ export async function POST(req: NextRequest) {
     if (!session || session.expiresAt < new Date()) return NextResponse.json({ error: "Session expired" }, { status: 401 });
     
     const { clawpumpKey, heliusKey, wallet, riskLevel } = await req.json();
+    const encryptionKey = process.env.ENCRYPTION_KEY || "";
     
     await prisma.user.update({
       where: { id: session.userId },
       data: {
         wallet: wallet || undefined,
         riskLevel: riskLevel || undefined,
-        encryptedClawpumpKey: clawpumpKey ? encrypt(clawpumpKey) : undefined,
-        encryptedHeliusKey: heliusKey ? encrypt(heliusKey) : undefined,
+        encryptedClawpumpKey: clawpumpKey && encryptionKey ? encryptApiKey(clawpumpKey, encryptionKey) : undefined,
+        encryptedHeliusKey: heliusKey && encryptionKey ? encryptApiKey(heliusKey, encryptionKey) : undefined,
       },
     });
     
