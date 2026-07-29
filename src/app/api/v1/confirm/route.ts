@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://bullclaw.vercel.app';
+    const baseUrl = 'https://bullclaw.vercel.app';
 
     return NextResponse.json(
       {
