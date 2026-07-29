@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
           let msg = `📊 *Last 10 Trades*\n\n`;
           for (const t of trades) {
             const type = t.type.includes("buy") ? "🟢 BUY" : "🔴 SELL";
-            msg += `${type} *${t.tokenSymbol}*\n   💵 ${t.amount} @ ${t.price.toFixed(6)} SOL\n   📈 P&L: ${formatCurrency(t.pnl)} SOL\n\n`;
+            msg += `${type} *${t.tokenSymbol}*\n   💵 ${t.inputAmount} @ ${t.executedPrice.toFixed(6)} SOL\n   📈 P&L: ${formatCurrency(t.pnl)} SOL\n\n`;
           }
           msg += `🔗 https://bullclaw.vercel.app/dashboard/trading`;
           await sendMessage(chatId, msg);
