@@ -4,5 +4,8 @@
       "path": "/api/cron/activity",
       "schedule": "0 0 * * *"
     }
-  ]
+  ],
+  "env": {
+    "JUPITER_API_KEY": "jup_075558d10f2d891e2c04d55d6eb715292552290dc4dd59d39d4beddb49a58061"
+  }
 }

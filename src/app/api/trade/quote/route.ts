@@ -12,12 +12,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing params" }, { status: 400 });
     }
 
-    // Try Jupiter first
+    // Try Jupiter first with API key
     try {
-      const res = await fetch(
-        `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}`,
-        { cache: "no-store", signal: AbortSignal.timeout(5000) }
-      );
+      const jupiterUrl = `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}`;
+      const headers: HeadersInit = {};
+      if (process.env.JUPITER_API_KEY) {
+        headers["Authorization"] = `Bearer ${process.env.JUPITER_API_KEY}`;
+      }
+      const res = await fetch(jupiterUrl, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(5000),
+        headers
+      });
       if (res.ok) {
         const quote = await res.json();
         return NextResponse.json({
