@@ -26,17 +26,25 @@ export async function GET(req: NextRequest) {
     const feeEarnings = agents.reduce((sum, a) => sum + (a.feeEarnings || 0), 0);
     const activeAgents = agents.filter(a => a.status === "active").length;
 
-    // Get $ANSEM price from Jupiter Price API
+    // Get $ANSEM price from DexScreener
     let ansemPrice = 0.000337;
     try {
-      const res = await fetch(`https://api.jup.ag/price/v2?ids=${ANSEM_MINT}`, { cache: "no-store" });
+      const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${ANSEM_MINT}`, { cache: "no-store" });
       const data = await res.json();
-      if (data?.data?.[ANSEM_MINT]?.price) {
-        ansemPrice = data.data[ANSEM_MINT].price;
+      if (data?.pairs?.[0]?.priceUsd) {
+        ansemPrice = parseFloat(data.pairs[0].priceUsd);
       }
-    } catch {
-      console.log("Failed to fetch ANSEM price from Jupiter");
-    }
+    } catch {}
+
+    // Get SOL price from DexScreener
+    let solPrice = 0;
+    try {
+      const solRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112`, { cache: "no-store" });
+      const solData = await solRes.json();
+      if (solData?.pairs?.[0]?.priceUsd) {
+        solPrice = parseFloat(solData.pairs[0].priceUsd);
+      }
+    } catch {}
 
     return NextResponse.json({
       totalAgents: agents.length,
@@ -44,6 +52,7 @@ export async function GET(req: NextRequest) {
       totalPnL,
       feeEarnings,
       ansemPrice,
+      solPrice,
       agents: agents.map(a => ({
         id: a.id,
         name: a.name,

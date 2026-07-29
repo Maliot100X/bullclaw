@@ -9,31 +9,61 @@ export async function GET(req: NextRequest) {
     const slippageBps = searchParams.get("slippageBps") || "50";
 
     if (!inputMint || !outputMint || !amount) {
-      return NextResponse.json({ error: "Missing params: inputMint, outputMint, amount required" }, { status: 400 });
+      return NextResponse.json({ error: "Missing params" }, { status: 400 });
     }
 
-    const res = await fetch(
-      `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}`,
-      { cache: "no-store" }
-    );
+    // Try Jupiter first
+    try {
+      const res = await fetch(
+        `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}`,
+        { cache: "no-store", signal: AbortSignal.timeout(5000) }
+      );
+      if (res.ok) {
+        const quote = await res.json();
+        return NextResponse.json({
+          success: true,
+          data: {
+            inputAmount: quote.inAmount,
+            outputAmount: quote.outAmount,
+            price: quote.price,
+            routePlan: quote.routePlan,
+            slippageBps: quote.slippageBps,
+            source: "jupiter",
+          },
+        });
+      }
+    } catch {}
 
-    if (!res.ok) {
-      return NextResponse.json({ error: "Quote failed" }, { status: 500 });
-    }
+    // Fallback: return estimated quote using DexScreener prices
+    try {
+      const [inRes, outRes] = await Promise.all([
+        fetch(`https://api.dexscreener.com/latest/dex/tokens/${inputMint}`),
+        fetch(`https://api.dexscreener.com/latest/dex/tokens/${outputMint}`),
+      ]);
+      const inData = await inRes.json();
+      const outData = await outRes.json();
+      const inPrice = parseFloat(inData?.pairs?.[0]?.priceUsd || "0");
+      const outPrice = parseFloat(outData?.pairs?.[0]?.priceUsd || "0");
 
-    const quote = await res.json();
-    return NextResponse.json({
-      success: true,
-      data: {
-        inputAmount: quote.inAmount,
-        outputAmount: quote.outAmount,
-        price: quote.price,
-        routePlan: quote.routePlan,
-        slippageBps: quote.slippageBps,
-      },
-    });
+      if (inPrice > 0 && outPrice > 0) {
+        const amountNum = parseFloat(amount);
+        const estimatedOut = (amountNum * inPrice) / outPrice;
+        return NextResponse.json({
+          success: true,
+          data: {
+            inputAmount: amount,
+            outputAmount: Math.floor(estimatedOut).toString(),
+            price: (inPrice / outPrice).toString(),
+            routePlan: [],
+            slippageBps: parseInt(slippageBps),
+            source: "dexscreener-estimate",
+          },
+        });
+      }
+    } catch {}
+
+    return NextResponse.json({ error: "Quote unavailable" }, { status: 503 });
   } catch (error) {
-    console.error("Quote error:", error);
     return NextResponse.json({ error: "Quote failed" }, { status: 500 });
   }
 }
