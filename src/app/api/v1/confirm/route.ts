@@ -38,7 +38,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const agentData = JSON.parse(agentDataValue as string);
+    // Parse agent data - Redis returns object directly, not string
+    const agentData = typeof agentDataValue === 'string' 
+      ? JSON.parse(agentDataValue) 
+      : agentDataValue;
+    
     await redis.del(agentDataKey);
 
     // Create system user for agent

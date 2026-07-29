@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateOneTimeCode, storeOneTimeCode } from '@/lib/auth';
+import { generateOneTimeCode } from '@/lib/auth';
 import { z } from 'zod';
+import { Redis } from '@upstash/redis';
 
 const AgentRegisterSchema = z.object({
   agentName: z.string().min(1).max(100),
@@ -17,23 +18,24 @@ export async function POST(request: NextRequest) {
     // Generate one-time code for agent
     const code = await generateOneTimeCode();
 
-    // Store agent data in Redis (temporary)
-    await storeOneTimeCode(code, undefined, undefined);
-
-    // Store agent details in a separate key
-    const agentDataKey = `agent_reg:${code}`;
-    const redis = await import('@upstash/redis').then(m => new m.Redis({
+    // Initialize Redis
+    const redis = new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL!,
       token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    }));
+    });
 
-    await redis.set(agentDataKey, JSON.stringify({
+    // Store agent data directly with Redis - it will be returned as object
+    const agentDataKey = `agent_reg:${code}`;
+    await redis.set(agentDataKey, {
       agentName: parsed.agentName,
       agentId: parsed.agentId,
       model: parsed.model || 'claude-sonnet-4-6',
       persona: parsed.persona || 'Default Agent',
       registeredAt: Date.now(),
-    }), { ex: 600 });
+    }, { ex: 600 });
+
+    // Also store OTC marker
+    await redis.set(`otc:${code}`, { type: 'agent', createdAt: Date.now() }, { ex: 600 });
 
     return NextResponse.json(
       {
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     console.error('Agent registration error:', error);
     return NextResponse.json(
-      { error: 'Agent registration failed' },
+      { error: 'Agent registration failed', details: error.message },
       { status: 500 }
     );
   }
