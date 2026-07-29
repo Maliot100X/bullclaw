@@ -10,7 +10,7 @@ const FEATURES = [
   { icon: "📱", title: "Telegram Control", desc: "Full feature parity between web dashboard and Telegram bot. Manage agents from anywhere.", badge: "Telegram", color: "#00d4ff" },
 ];
 
-const SKILL_URL = "https://bullclaw.vercel.app/api/skill";
+const SKILL_URL = "https://bullclaw.vercel.app/skill.md";
 
 const STATS = [
   { label: "Agents Created", value: "0" },
