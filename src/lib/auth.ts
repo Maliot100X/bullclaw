@@ -11,25 +11,15 @@ export async function generateOneTimeCode(): Promise<string> {
   return code;
 }
 
-export async function storeOneTimeCode(code: string, telegramId?: string, wallet?: string): Promise<void> {
-  const key = `otc:${code}`;
-  const value = JSON.stringify({
-    telegramId,
-    wallet,
-    createdAt: Date.now(),
-  });
-
-  await redis.set(key, value, { ex: 600 }); // 10 minutes
-}
-
 export async function verifyOneTimeCode(code: string): Promise<{ telegramId?: string; wallet?: string } | null> {
   const key = `otc:${code}`;
   const value = await redis.get(key);
 
   if (!value) return null;
 
-  const data = JSON.parse(value as string);
-  await redis.del(key); // One-time use
+  // Redis returns object directly, not string
+  const data = typeof value === 'string' ? JSON.parse(value) : value;
+  await redis.del(key);
 
   return data;
 }
@@ -51,7 +41,7 @@ export async function getSession(token: string): Promise<{ userId: string } | nu
 
   if (!value) return null;
 
-  const data = JSON.parse(value as string);
+  const data = typeof value === 'string' ? JSON.parse(value) : value;
 
   if (data.expiresAt < Date.now()) {
     await redis.del(key);
