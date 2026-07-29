@@ -7,10 +7,7 @@
  */
 
 import { Bot, Context, GrammyError, HttpError, InlineKeyboard } from "grammy";
-import { PrismaClient } from "@prisma/client";
-
-// Initialize Prisma
-const prisma = new PrismaClient();
+import prisma from "../src/lib/prisma";
 
 // Types
 interface AgentData {
