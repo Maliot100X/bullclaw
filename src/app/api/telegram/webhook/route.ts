@@ -5,7 +5,10 @@ const prisma = new PrismaClient();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 
 async function sendMessage(chatId: string, text: string) {
-  if (!BOT_TOKEN) return;
+  if (!BOT_TOKEN) {
+    console.log("Bot token not set");
+    return;
+  }
   try {
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: "POST",
@@ -85,8 +88,8 @@ https://bullclaw.vercel.app/dashboard/builder`);
 https://bullclaw.vercel.app/dashboard/portfolio`);
     }
     else if (text === "/trades") {
-      const agents = await prisma.agent.findMany({ where: { userId: user.id }, select: { id: true } });
-      const agentIds = agents.map(a => a.id);
+      const agentList = await prisma.agent.findMany({ where: { userId: user.id }, select: { id: true } });
+      const agentIds = agentList.map(a => a.id);
       const trades = await prisma.trade.findMany({
         where: { agentId: { in: agentIds } },
         orderBy: { createdAt: "desc" },
