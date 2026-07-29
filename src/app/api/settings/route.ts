@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/lib/prisma";
 import crypto from "crypto";
-
-const prisma = new PrismaClient();
 
 function encrypt(text: string): string {
   const key = process.env.ENCRYPTION_KEY;

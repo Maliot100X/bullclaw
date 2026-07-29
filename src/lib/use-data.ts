@@ -13,6 +13,7 @@ interface State<T> {
 /**
  * Fetches one of the /api/dashboard/* endpoints, carrying through the
  * `demo` flag so pages can surface where their numbers came from.
+ * Includes auth token from localStorage.
  */
 export function useData<T>(path: string): State<T> {
   const [state, setState] = useState<State<T>>({
@@ -25,10 +26,18 @@ export function useData<T>(path: string): State<T> {
   useEffect(() => {
     let cancelled = false;
 
-    fetch(path)
+    const token = typeof window !== 'undefined' ? localStorage.getItem('bullclaw_token') : null;
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    fetch(path, { headers })
       .then(async (res) => {
         const body = await res.json();
-        if (!res.ok || !body.success) {
+        if (!res.ok) {
           throw new Error(body.error || `Request failed (${res.status})`);
         }
         return body;
@@ -36,7 +45,7 @@ export function useData<T>(path: string): State<T> {
       .then((body) => {
         if (cancelled) return;
         setState({
-          data: body.data,
+          data: body.data ?? body.agents ?? body,
           demo: Boolean(body.demo),
           notice: body.notice,
           loading: false,

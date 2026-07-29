@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/lib/prisma";
 import crypto from "crypto";
-
-const prisma = new PrismaClient();
 
 function generateToken(): string {
   return `bc_${crypto.randomBytes(32).toString("hex")}`;
