@@ -1,152 +1,81 @@
-'use client';
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { BarChart3, PieChart, TrendingUp, Wallet } from 'lucide-react';
-import { useData } from '@/lib/use-data';
-import {
-  Card,
-  CardHeader,
-  DemoBanner,
-  EmptyState,
-  PageHeader,
-  StatCard,
-  Table,
-  fmtNum,
-  fmtUsd,
-  shortAddr,
-} from '@/components/ui';
-import type { DemoHolding } from '@/lib/demo-data';
-
-/** Bar colours cycle so the allocation chart stays readable. */
-const BARS = ['bg-yellow-500', 'bg-violet-500', 'bg-emerald-500', 'bg-blue-500'];
+interface Holding {
+  symbol: string;
+  name: string;
+  amount: number;
+  valueUsd: number;
+  change24h: number;
+}
 
 export default function PortfolioPage() {
-  const { data, demo, notice, loading, error } =
-    useData<DemoHolding[]>('/api/dashboard/holdings');
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [totalValue, setTotalValue] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  const holdings = data ?? [];
-  const total = holdings.reduce((s, h) => s + h.valueUsd, 0);
-  const best = holdings.reduce<DemoHolding | null>(
-    (top, h) => (!top || h.change24h > top.change24h ? h : top),
-    null,
-  );
-  const weighted = total
-    ? holdings.reduce((s, h) => s + h.change24h * (h.valueUsd / total), 0)
-    : 0;
+  useEffect(() => {
+    const token = localStorage.getItem("bullclaw_token");
+    if (!token) { router.push("/login"); return; }
+    
+    fetch("/api/dashboard/holdings", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { 
+        setHoldings(d.holdings || []); 
+        setTotalValue(d.totalValue || 0);
+        setLoading(false); 
+      })
+      .catch(() => setLoading(false));
+  }, [router]);
+
+  if (loading) return <div style={{ textAlign: "center", padding: 80 }}>Loading...</div>;
 
   return (
-    <div className="space-y-6">
-      {demo && notice ? <DemoBanner message={notice} /> : null}
-
-      <PageHeader
-        title="Portfolio"
-        description="Aggregate holdings across every agent wallet."
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={Wallet}
-          label="Total value"
-          value={fmtUsd(total)}
-          delta={weighted}
-          accent="text-yellow-500"
-        />
-        <StatCard
-          icon={PieChart}
-          label="Assets"
-          value={holdings.length}
-          accent="text-blue-400"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Best 24h"
-          value={best ? best.symbol : '—'}
-          delta={best?.change24h}
-          accent="text-emerald-400"
-        />
-        <StatCard
-          icon={BarChart3}
-          label="Largest position"
-          value={
-            holdings.length
-              ? `${((Math.max(...holdings.map((h) => h.valueUsd)) / total) * 100).toFixed(0)}%`
-              : '—'
-          }
-          accent="text-violet-400"
-        />
+    <div>
+      <h1 style={{ fontSize: 28, fontWeight: 800, color: "#e8e8f0", marginBottom: 24 }}>Portfolio</h1>
+      
+      <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+        <div style={{ fontSize: 12, color: "#6b6b8a", marginBottom: 4 }}>TOTAL VALUE</div>
+        <div style={{ fontSize: 36, fontWeight: 900, color: "#FFB81C" }}>${totalValue.toFixed(2)}</div>
       </div>
 
-      {loading ? (
-        <p className="text-sm text-gray-500">Loading portfolio…</p>
-      ) : error ? (
-        <Card className="p-6">
-          <p className="text-sm text-red-400">Failed to load portfolio: {error}</p>
-        </Card>
-      ) : holdings.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={Wallet}
-            title="No holdings"
-            description="Agent wallets are empty. Fund one to see balances here."
-          />
-        </Card>
+      {holdings.length === 0 ? (
+        <div className="card" style={{ padding: 48, textAlign: "center" }}>
+          <p style={{ color: "#6b6b8a" }}>No holdings yet. Create an agent to start trading.</p>
+        </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-5">
-          {/* Allocation */}
-          <Card className="lg:col-span-2">
-            <CardHeader title="Allocation" icon={PieChart} />
-            <div className="space-y-4 p-6">
-              {holdings
-                .slice()
-                .sort((a, b) => b.valueUsd - a.valueUsd)
-                .map((h, i) => {
-                  const pct = (h.valueUsd / total) * 100;
-                  return (
-                    <div key={h.mint}>
-                      <div className="mb-1.5 flex items-baseline justify-between text-sm">
-                        <span className="font-medium text-white">{h.symbol}</span>
-                        <span className="text-gray-400">{pct.toFixed(1)}%</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-gray-800">
-                        <div
-                          className={`h-full rounded-full ${BARS[i % BARS.length]}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </Card>
-
-          {/* Holdings table */}
-          <Card className="lg:col-span-3">
-            <CardHeader title="Holdings" icon={Wallet} />
-            <Table head={['Asset', 'Amount', 'Price', 'Value', '24h']}>
-              {holdings.map((h) => (
-                <tr key={h.mint} className="transition hover:bg-gray-900/60">
-                  <td className="px-6 py-3">
-                    <p className="font-medium text-white">{h.symbol}</p>
-                    <p className="font-mono text-xs text-gray-500">
-                      {shortAddr(h.mint)}
-                    </p>
+        <div className="card" style={{ padding: 0 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #1e1e3a" }}>
+                <th style={{ textAlign: "left", padding: "16px 20px", color: "#6b6b8a", fontWeight: 500, fontSize: 12 }}>ASSET</th>
+                <th style={{ textAlign: "right", padding: "16px 20px", color: "#6b6b8a", fontWeight: 500, fontSize: 12 }}>AMOUNT</th>
+                <th style={{ textAlign: "right", padding: "16px 20px", color: "#6b6b8a", fontWeight: 500, fontSize: 12 }}>VALUE</th>
+                <th style={{ textAlign: "right", padding: "16px 20px", color: "#6b6b8a", fontWeight: 500, fontSize: 12 }}>24H</th>
+              </tr>
+            </thead>
+            <tbody>
+              {holdings.map((h, i) => (
+                <tr key={i} style={{ borderBottom: i < holdings.length - 1 ? "1px solid #1e1e3a20" : "none" }}>
+                  <td style={{ padding: "16px 20px" }}>
+                    <div style={{ fontWeight: 600, color: "#e8e8f0" }}>{h.symbol}</div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>{h.name}</div>
                   </td>
-                  <td className="px-6 py-3 text-gray-300">{fmtNum(h.amount)}</td>
-                  <td className="px-6 py-3 text-gray-300">{fmtUsd(h.priceUsd)}</td>
-                  <td className="px-6 py-3 font-semibold text-white">
-                    {fmtUsd(h.valueUsd)}
+                  <td style={{ textAlign: "right", padding: "16px 20px", fontFamily: "monospace", color: "#e8e8f0" }}>
+                    {h.amount.toLocaleString()}
                   </td>
-                  <td
-                    className={`px-6 py-3 font-medium ${
-                      h.change24h >= 0 ? 'text-emerald-400' : 'text-red-400'
-                    }`}
-                  >
-                    {h.change24h >= 0 ? '+' : ''}
-                    {h.change24h.toFixed(2)}%
+                  <td style={{ textAlign: "right", padding: "16px 20px", fontFamily: "monospace", color: "#e8e8f0" }}>
+                    ${h.valueUsd.toLocaleString()}
+                  </td>
+                  <td style={{ textAlign: "right", padding: "16px 20px", color: h.change24h >= 0 ? "#00ff88" : "#ff4466" }}>
+                    {h.change24h >= 0 ? "+" : ""}{h.change24h.toFixed(2)}%
                   </td>
                 </tr>
               ))}
-            </Table>
-          </Card>
+            </tbody>
+          </table>
         </div>
       )}
     </div>

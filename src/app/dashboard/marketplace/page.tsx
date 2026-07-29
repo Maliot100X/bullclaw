@@ -1,164 +1,80 @@
-'use client';
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { useMemo, useState } from 'react';
-import { ShoppingCart, TrendingUp, Users } from 'lucide-react';
-import { useData } from '@/lib/use-data';
-import {
-  Badge,
-  Button,
-  Card,
-  DemoBanner,
-  EmptyState,
-  PageHeader,
-  StatCard,
-  fmtNum,
-  fmtUsd,
-} from '@/components/ui';
-import type { DemoListing } from '@/lib/demo-data';
-
-type Sort = 'pnl' | 'price' | 'subscribers';
-
-const SORTS: { key: Sort; label: string }[] = [
-  { key: 'pnl', label: '30d P&L' },
-  { key: 'price', label: 'Price' },
-  { key: 'subscribers', label: 'Subscribers' },
-];
+interface Listing {
+  id: string;
+  name: string;
+  template: string;
+  seller: string;
+  priceSol: number;
+  pnl30d: number;
+  winRate: number;
+  subscribers: number;
+}
 
 export default function MarketplacePage() {
-  const { data, demo, notice, loading, error } =
-    useData<DemoListing[]>('/api/dashboard/listings');
-  const [sort, setSort] = useState<Sort>('pnl');
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  const listings = data ?? [];
+  useEffect(() => {
+    const token = localStorage.getItem("bullclaw_token");
+    if (!token) { router.push("/login"); return; }
+    
+    fetch("/api/dashboard/listings", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { setListings(d.listings || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [router]);
 
-  const sorted = useMemo(() => {
-    const copy = listings.slice();
-    copy.sort((a, b) =>
-      sort === 'price'
-        ? a.priceSol - b.priceSol
-        : sort === 'subscribers'
-          ? b.subscribers - a.subscribers
-          : b.pnl30d - a.pnl30d,
-    );
-    return copy;
-  }, [listings, sort]);
-
-  const volume = listings.reduce((s, l) => s + l.priceSol, 0);
+  if (loading) return <div style={{ textAlign: "center", padding: 80 }}>Loading...</div>;
 
   return (
-    <div className="space-y-6">
-      {demo && notice ? <DemoBanner message={notice} /> : null}
-
-      <PageHeader
-        title="Marketplace"
-        description="Copy a proven agent, or list one of yours and earn a share of its fees."
-      />
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          icon={ShoppingCart}
-          label="Listings"
-          value={listings.length}
-          accent="text-yellow-500"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Listed value"
-          value={`${fmtNum(volume)} SOL`}
-          accent="text-emerald-400"
-        />
-        <StatCard
-          icon={Users}
-          label="Subscribers"
-          value={listings.reduce((s, l) => s + l.subscribers, 0)}
-          accent="text-blue-400"
-        />
+    <div>
+      <h1 style={{ fontSize: 28, fontWeight: 800, color: "#e8e8f0", marginBottom: 24 }}>Marketplace</h1>
+      
+      <div style={{ background: "#0a0a18", border: "1px solid #FFB81C25", borderRadius: 12, padding: "16px 20px", marginBottom: 24 }}>
+        <p style={{ color: "#6b6b8a", fontSize: 14 }}>
+          Browse and buy proven trading agents from other traders.
+        </p>
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500">Sort by</span>
-        <div className="flex gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1">
-          {SORTS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setSort(key)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                sort === key ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+      {listings.length === 0 ? (
+        <div className="card" style={{ padding: 48, textAlign: "center" }}>
+          <p style={{ color: "#6b6b8a" }}>No listings yet. Be the first to sell an agent!</p>
         </div>
-      </div>
-
-      {loading ? (
-        <p className="text-sm text-gray-500">Loading listings…</p>
-      ) : error ? (
-        <Card className="p-6">
-          <p className="text-sm text-red-400">Failed to load listings: {error}</p>
-        </Card>
-      ) : sorted.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={ShoppingCart}
-            title="Nothing listed"
-            description="No agents are currently for sale."
-          />
-        </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {sorted.map((l) => (
-            <Card key={l.id} className="p-6 transition hover:border-yellow-500/40">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold text-white">{l.name}</h3>
-                    {l.seller === 'you' ? <Badge tone="yellow">your listing</Badge> : null}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+          {listings.map(listing => (
+            <div key={listing.id} className="card" style={{ padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: "#e8e8f0", marginBottom: 4 }}>{listing.name}</h3>
+                  <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, background: "#a78bfa20", color: "#a78bfa" }}>{listing.template}</span>
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: "#FFB81C" }}>{listing.priceSol} SOL</div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginTop: 16 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "#6b6b8a" }}>30D P&L</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: listing.pnl30d >= 0 ? "#00ff88" : "#ff4466" }}>
+                    {listing.pnl30d >= 0 ? "+" : ""}{listing.pnl30d.toFixed(0)} SOL
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {l.template} · seller {l.seller}
-                  </p>
                 </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-lg font-bold text-white">{l.priceSol} SOL</p>
-                  <p className="text-xs text-gray-500">one-time</p>
+                <div>
+                  <div style={{ fontSize: 11, color: "#6b6b8a" }}>Win Rate</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#e8e8f0" }}>{(listing.winRate * 100).toFixed(0)}%</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "#6b6b8a" }}>Subscribers</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#e8e8f0" }}>{listing.subscribers}</div>
                 </div>
               </div>
-
-              <dl className="mt-5 grid grid-cols-3 gap-4 border-t border-gray-800 pt-4 text-sm">
-                <div>
-                  <dt className="text-xs text-gray-500">30d P&amp;L</dt>
-                  <dd
-                    className={`mt-0.5 font-semibold ${
-                      l.pnl30d >= 0 ? 'text-emerald-400' : 'text-red-400'
-                    }`}
-                  >
-                    {l.pnl30d >= 0 ? '+' : ''}
-                    {fmtUsd(l.pnl30d)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-gray-500">Win rate</dt>
-                  <dd className="mt-0.5 font-semibold text-white">
-                    {(l.winRate * 100).toFixed(0)}%
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-gray-500">Subscribers</dt>
-                  <dd className="mt-0.5 font-semibold text-white">{l.subscribers}</dd>
-                </div>
-              </dl>
-
-              <div className="mt-5 flex gap-2">
-                <Button variant={l.seller === 'you' ? 'secondary' : 'primary'} size="sm">
-                  {l.seller === 'you' ? 'Manage listing' : `Copy for ${l.priceSol} SOL`}
-                </Button>
-                <Button variant="ghost" size="sm">
-                  View details
-                </Button>
-              </div>
-            </Card>
+              <button className="btn-primary" style={{ width: "100%", marginTop: 16, padding: "10px 20px" }}>
+                Buy Agent
+              </button>
+            </div>
           ))}
         </div>
       )}

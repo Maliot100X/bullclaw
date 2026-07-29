@@ -1,185 +1,90 @@
-'use client';
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { useEffect, useMemo, useState } from 'react';
-import { Puzzle, Search, Sparkles } from 'lucide-react';
-import { useData } from '@/lib/use-data';
-import {
-  Badge,
-  Card,
-  DemoBanner,
-  EmptyState,
-  PageHeader,
-  StatCard,
-  fmtNum,
-} from '@/components/ui';
-import type { DemoSkill } from '@/lib/demo-data';
+interface Skill {
+  id: string;
+  skillId: string;
+  skillName: string;
+  source: string;
+  enabled: boolean;
+  description: string;
+}
 
-const SOURCE_TONE = {
-  clawpump: 'yellow',
-  helius: 'blue',
-  solana: 'purple',
-  custom: 'gray',
-} as const;
+const AVAILABLE_SKILLS = [
+  { skillId: "clawpump.trade", name: "ClawPump Spot Trading", source: "clawpump", description: "Execute spot buys and sells through ClawPump." },
+  { skillId: "clawpump.perps", name: "ClawPump Perps", source: "clawpump", description: "Open, manage and close leveraged positions." },
+  { skillId: "helius.tx-stream", name: "Helius Transaction Stream", source: "helius", description: "Real-time transaction monitoring." },
+  { skillId: "helius.price-feed", name: "Helius Price Feed", source: "helius", description: "Low-latency pricing for any SPL mint." },
+  { skillId: "solana.jupiter-swap", name: "Jupiter Swap", source: "solana", description: "Best-route swaps via Jupiter aggregation." },
+  { skillId: "solana.rug-check", name: "Rug Check", source: "solana", description: "Score a mint on rug risks." },
+];
 
 export default function SkillsPage() {
-  const { data, demo, notice, loading, error } =
-    useData<DemoSkill[]>('/api/dashboard/skills');
-
-  /** Toggle state is local until a write endpoint exists. */
-  const [enabled, setEnabled] = useState<Record<string, boolean>>({});
-  const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('All');
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    if (!data) return;
-    setEnabled(Object.fromEntries(data.map((s) => [s.skillId, s.enabled])));
-  }, [data]);
+    const token = localStorage.getItem("bullclaw_token");
+    if (!token) { router.push("/login"); return; }
+    
+    fetch("/api/dashboard/skills", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { setSkills(d.skills || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [router]);
 
-  const skills = data ?? [];
+  const toggleSkill = async (skillId: string, enabled: boolean) => {
+    const token = localStorage.getItem("bullclaw_token");
+    if (!token) return;
+    
+    await fetch("/api/dashboard/skills", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ skillId, enabled }),
+    });
+    
+    setSkills(prev => prev.map(s => s.skillId === skillId ? { ...s, enabled } : s));
+  };
 
-  const categories = useMemo(
-    () => ['All', ...Array.from(new Set(skills.map((s) => s.category)))],
-    [skills],
-  );
-
-  const visible = useMemo(
-    () =>
-      skills.filter((s) => {
-        if (category !== 'All' && s.category !== category) return false;
-        if (!query) return true;
-        const q = query.toLowerCase();
-        return (
-          s.skillName.toLowerCase().includes(q) ||
-          s.description.toLowerCase().includes(q) ||
-          s.skillId.toLowerCase().includes(q)
-        );
-      }),
-    [skills, category, query],
-  );
-
-  const activeCount = Object.values(enabled).filter(Boolean).length;
+  if (loading) return <div style={{ textAlign: "center", padding: 80 }}>Loading...</div>;
 
   return (
-    <div className="space-y-6">
-      {demo && notice ? <DemoBanner message={notice} /> : null}
-
-      <PageHeader
-        title="Skills"
-        description="Capabilities your agents can call. Toggle one off to revoke it everywhere."
-      />
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          icon={Puzzle}
-          label="Installed"
-          value={skills.length}
-          accent="text-blue-400"
-        />
-        <StatCard
-          icon={Sparkles}
-          label="Enabled"
-          value={activeCount}
-          accent="text-emerald-400"
-        />
-        <StatCard
-          icon={Sparkles}
-          label="Premium"
-          value={skills.filter((s) => s.premium).length}
-          accent="text-violet-400"
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex flex-wrap gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1">
-          {categories.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                category === c ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search skills…"
-            className="w-full rounded-lg border border-gray-800 bg-gray-900/60 py-2 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-yellow-500/50 focus:outline-none"
-          />
-        </div>
-      </div>
-
-      {loading ? (
-        <p className="text-sm text-gray-500">Loading skills…</p>
-      ) : error ? (
-        <Card className="p-6">
-          <p className="text-sm text-red-400">Failed to load skills: {error}</p>
-        </Card>
-      ) : visible.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={Puzzle}
-            title="No skills match"
-            description="Try another category or search term."
-          />
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {visible.map((s) => {
-            const on = enabled[s.skillId] ?? s.enabled;
-            return (
-              <Card key={s.skillId} className="p-5 transition hover:border-gray-700">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-semibold text-white">{s.skillName}</h3>
-                      <Badge tone={SOURCE_TONE[s.source] ?? 'gray'}>{s.source}</Badge>
-                      {s.premium ? <Badge tone="purple">premium</Badge> : null}
-                    </div>
-                    <p className="mt-2 text-sm leading-relaxed text-gray-400">
-                      {s.description}
-                    </p>
-                    <p className="mt-3 font-mono text-xs text-gray-600">{s.skillId}</p>
-                  </div>
-
-                  <button
-                    role="switch"
-                    aria-checked={on}
-                    aria-label={`Toggle ${s.skillName}`}
-                    onClick={() =>
-                      setEnabled((prev) => ({ ...prev, [s.skillId]: !on }))
-                    }
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                      on ? 'bg-emerald-500' : 'bg-gray-700'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
-                        on ? 'left-[1.375rem]' : 'left-0.5'
-                      }`}
-                    />
-                  </button>
+    <div>
+      <h1 style={{ fontSize: 28, fontWeight: 800, color: "#e8e8f0", marginBottom: 24 }}>Skills</h1>
+      
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+        {AVAILABLE_SKILLS.map(skill => {
+          const userSkill = skills.find(s => s.skillId === skill.skillId);
+          return (
+            <div key={skill.skillId} className="card" style={{ padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div>
+                  <h3 style={{ fontSize: 14, fontWeight: 600, color: "#e8e8f0", marginBottom: 4 }}>{skill.name}</h3>
+                  <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, background: "#FFB81C20", color: "#FFB81C" }}>{skill.source}</span>
                 </div>
-
-                <div className="mt-4 flex items-center justify-between border-t border-gray-800 pt-3 text-xs">
-                  <span className="text-gray-500">
-                    {fmtNum(s.installs)} installs
-                  </span>
-                  <span className={on ? 'text-emerald-400' : 'text-gray-500'}>
-                    {on ? 'Enabled' : 'Disabled'}
-                  </span>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+                <button
+                  onClick={() => toggleSkill(skill.skillId, !userSkill?.enabled)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    background: userSkill?.enabled ? "#00ff8820" : "#1e1e3a",
+                    color: userSkill?.enabled ? "#00ff88" : "#6b6b8a",
+                    border: "none",
+                  }}
+                >
+                  {userSkill?.enabled ? "ON" : "OFF"}
+                </button>
+              </div>
+              <p style={{ fontSize: 13, color: "#6b6b8a", lineHeight: 1.5 }}>{skill.description}</p>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

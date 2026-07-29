@@ -1,172 +1,81 @@
-'use client';
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { useMemo, useState } from 'react';
-import { Activity, ArrowDownRight, ArrowUpRight, ExternalLink } from 'lucide-react';
-import { useData } from '@/lib/use-data';
-import {
-  Badge,
-  Card,
-  CardHeader,
-  DemoBanner,
-  EmptyState,
-  PageHeader,
-  StatCard,
-  Table,
-  fmtNum,
-  fmtUsd,
-} from '@/components/ui';
-import type { BullClawAgent, BullClawTrade } from '@/lib/types';
-
-const TRADE_TONE = {
-  spot_buy: 'green',
-  spot_sell: 'yellow',
-  perp_long: 'blue',
-  perp_short: 'purple',
-  perp_close: 'gray',
-} as const;
-
-type Side = 'all' | 'spot' | 'perp';
+interface Trade {
+  id: string;
+  type: string;
+  tokenSymbol: string;
+  inputAmount: number;
+  pnl: number;
+  createdAt: string;
+}
 
 export default function TradingPage() {
-  const trades = useData<BullClawTrade[]>('/api/dashboard/trades');
-  const agents = useData<BullClawAgent[]>('/api/dashboard/agents');
-  const [side, setSide] = useState<Side>('all');
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  const rows = trades.data ?? [];
+  useEffect(() => {
+    const token = localStorage.getItem("bullclaw_token");
+    if (!token) { router.push("/login"); return; }
+    
+    fetch("/api/dashboard/trades", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { setTrades(d.trades || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [router]);
 
-  const agentNames = useMemo(() => {
-    const map = new Map<string, string>();
-    (agents.data ?? []).forEach((a) => map.set(a.id, a.name));
-    return map;
-  }, [agents.data]);
-
-  const visible = useMemo(
-    () =>
-      rows.filter((t) =>
-        side === 'all'
-          ? true
-          : side === 'spot'
-            ? t.type.startsWith('spot')
-            : t.type.startsWith('perp'),
-      ),
-    [rows, side],
-  );
-
-  const realised = rows.reduce((s, t) => s + t.pnl, 0);
-  const fees = rows.reduce((s, t) => s + t.fee, 0);
-  const wins = rows.filter((t) => t.pnl > 0).length;
-  const winRate = rows.length ? (wins / rows.length) * 100 : 0;
+  if (loading) return <div style={{ textAlign: "center", padding: 80 }}>Loading...</div>;
 
   return (
-    <div className="space-y-6">
-      {trades.demo && trades.notice ? <DemoBanner message={trades.notice} /> : null}
-
-      <PageHeader
-        title="Trading"
-        description="Execution history across every agent, spot and perps."
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={realised >= 0 ? ArrowUpRight : ArrowDownRight}
-          label="Realised P&L"
-          value={fmtUsd(realised)}
-          accent={realised >= 0 ? 'text-emerald-400' : 'text-red-400'}
-        />
-        <StatCard
-          icon={Activity}
-          label="Trades"
-          value={rows.length}
-          accent="text-blue-400"
-        />
-        <StatCard
-          icon={ArrowUpRight}
-          label="Win rate"
-          value={`${winRate.toFixed(0)}%`}
-          accent="text-violet-400"
-        />
-        <StatCard
-          icon={ArrowDownRight}
-          label="Fees paid"
-          value={`${fmtNum(fees)} SOL`}
-          accent="text-yellow-500"
-        />
-      </div>
-
-      <Card>
-        <CardHeader
-          title="Trade history"
-          icon={Activity}
-          action={
-            <div className="flex gap-1 rounded-lg border border-gray-800 bg-gray-950 p-1">
-              {(['all', 'spot', 'perp'] as Side[]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSide(s)}
-                  className={`rounded-md px-3 py-1 text-xs font-medium capitalize transition ${
-                    side === s
-                      ? 'bg-gray-800 text-white'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          }
-        />
-
-        {trades.loading ? (
-          <p className="px-6 py-8 text-sm text-gray-500">Loading trades…</p>
-        ) : visible.length === 0 ? (
-          <EmptyState
-            icon={Activity}
-            title="No trades"
-            description="Nothing matches this filter yet."
-          />
-        ) : (
-          <Table head={['Type', 'Token', 'Agent', 'Size', 'Price', 'P&L', 'Tx']}>
-            {visible.map((t) => (
-              <tr key={t.id} className="transition hover:bg-gray-900/60">
-                <td className="px-6 py-3">
-                  <Badge tone={TRADE_TONE[t.type] ?? 'gray'}>
-                    {t.type.replace('_', ' ')}
-                  </Badge>
-                </td>
-                <td className="px-6 py-3 font-medium text-white">{t.tokenSymbol}</td>
-                <td className="px-6 py-3 text-gray-400">
-                  {agentNames.get(t.agentId) ?? '—'}
-                </td>
-                <td className="px-6 py-3 text-gray-300">{fmtNum(t.inputAmount)}</td>
-                <td className="px-6 py-3 text-gray-300">{fmtUsd(t.executedPrice)}</td>
-                <td
-                  className={`px-6 py-3 font-semibold ${
-                    t.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'
-                  }`}
-                >
-                  {t.pnl >= 0 ? '+' : ''}
-                  {fmtUsd(t.pnl)}
-                </td>
-                <td className="px-6 py-3">
-                  {t.txSignature ? (
-                    <a
-                      href={`https://solscan.io/tx/${t.txSignature}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-yellow-500 hover:text-yellow-400"
-                    >
-                      view
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : (
-                    <span className="text-xs text-gray-600">—</span>
-                  )}
-                </td>
+    <div>
+      <h1 style={{ fontSize: 28, fontWeight: 800, color: "#e8e8f0", marginBottom: 24 }}>Trading</h1>
+      
+      {trades.length === 0 ? (
+        <div className="card" style={{ padding: 48, textAlign: "center" }}>
+          <p style={{ color: "#6b6b8a" }}>No trades yet.</p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #1e1e3a" }}>
+                <th style={{ textAlign: "left", padding: "16px 20px", color: "#6b6b8a", fontWeight: 500, fontSize: 12 }}>TYPE</th>
+                <th style={{ textAlign: "left", padding: "16px 20px", color: "#6b6b8a", fontWeight: 500, fontSize: 12 }}>TOKEN</th>
+                <th style={{ textAlign: "right", padding: "16px 20px", color: "#6b6b8a", fontWeight: 500, fontSize: 12 }}>AMOUNT</th>
+                <th style={{ textAlign: "right", padding: "16px 20px", color: "#6b6b8a", fontWeight: 500, fontSize: 12 }}>P&L</th>
+                <th style={{ textAlign: "right", padding: "16px 20px", color: "#6b6b8a", fontWeight: 500, fontSize: 12 }}>TIME</th>
               </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
+            </thead>
+            <tbody>
+              {trades.map((t, i) => (
+                <tr key={t.id} style={{ borderBottom: i < trades.length - 1 ? "1px solid #1e1e3a20" : "none" }}>
+                  <td style={{ padding: "16px 20px" }}>
+                    <span style={{
+                      padding: "4px 8px", borderRadius: 4, fontSize: 12,
+                      background: t.type.includes("buy") ? "#00ff8820" : "#ff446620",
+                      color: t.type.includes("buy") ? "#00ff88" : "#ff4466",
+                    }}>
+                      {t.type.replace(/_/g, " ").toUpperCase()}
+                    </span>
+                  </td>
+                  <td style={{ padding: "16px 20px", fontWeight: 500, color: "#e8e8f0" }}>{t.tokenSymbol}</td>
+                  <td style={{ textAlign: "right", padding: "16px 20px", fontFamily: "monospace", color: "#e8e8f0" }}>
+                    {t.inputAmount.toFixed(4)}
+                  </td>
+                  <td style={{ textAlign: "right", padding: "16px 20px", color: t.pnl >= 0 ? "#00ff88" : "#ff4466" }}>
+                    {t.pnl >= 0 ? "+" : ""}{t.pnl.toFixed(2)}
+                  </td>
+                  <td style={{ textAlign: "right", padding: "16px 20px", color: "#6b6b8a", fontSize: 13 }}>
+                    {new Date(t.createdAt).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,26 +3,24 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const token = req.headers.get("Authorization")?.replace("Bearer ", "");
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     
     const session = await prisma.session.findUnique({ where: { token } });
     if (!session) return NextResponse.json({ error: "Session expired" }, { status: 401 });
     
-    const agents = await prisma.agent.findMany({ where: { userId: session.userId } });
-    const agentIds = agents.map(a => a.id);
-    
-    const trades = await prisma.trade.findMany({
-      where: { agentId: { in: agentIds } },
-      orderBy: { createdAt: "desc" },
-      take: 50,
+    const agent = await prisma.agent.findFirst({
+      where: { id, userId: session.userId },
     });
     
-    return NextResponse.json({ trades });
+    if (!agent) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    
+    return NextResponse.json({ agent });
   } catch (error) {
-    console.error("Trades error:", error);
-    return NextResponse.json({ trades: [] });
+    console.error("Agent error:", error);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

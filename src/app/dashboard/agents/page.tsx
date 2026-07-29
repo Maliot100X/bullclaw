@@ -1,189 +1,85 @@
-'use client';
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-import { useMemo, useState } from 'react';
-import Link from 'next/link';
-import { Plus, Search, Zap } from 'lucide-react';
-import { useData } from '@/lib/use-data';
-import {
-  Badge,
-  Button,
-  Card,
-  DemoBanner,
-  EmptyState,
-  PageHeader,
-  fmtUsd,
-  shortAddr,
-} from '@/components/ui';
-import type { BullClawAgent } from '@/lib/types';
+interface Agent {
+  id: string;
+  name: string;
+  status: string;
+  template: string;
+  totalPnL: number;
+  feeEarnings: number;
+  walletAddress?: string;
+}
 
-type Filter = 'all' | 'active' | 'paused' | 'listed';
+export default function AgentsPage() {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'active', label: 'Active' },
-  { key: 'paused', label: 'Paused' },
-  { key: 'listed', label: 'Listed' },
-];
+  useEffect(() => {
+    const token = localStorage.getItem("bullclaw_token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    fetch("/api/dashboard/agents", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { setAgents(d.agents || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [router]);
 
-export default function MyAgentsPage() {
-  const { data, demo, notice, loading, error } =
-    useData<BullClawAgent[]>('/api/dashboard/agents');
-  const [filter, setFilter] = useState<Filter>('all');
-  const [query, setQuery] = useState('');
-
-  const agents = data ?? [];
-
-  const visible = useMemo(() => {
-    return agents.filter((a) => {
-      if (filter === 'listed' && !a.listedForSale) return false;
-      if ((filter === 'active' || filter === 'paused') && a.status !== filter) return false;
-      if (query) {
-        const q = query.toLowerCase();
-        return (
-          a.name.toLowerCase().includes(q) ||
-          a.template.toLowerCase().includes(q) ||
-          (a.description ?? '').toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [agents, filter, query]);
+  if (loading) return <div style={{ textAlign: "center", padding: 80 }}>Loading...</div>;
 
   return (
-    <div className="space-y-6">
-      {demo && notice ? <DemoBanner message={notice} /> : null}
-
-      <PageHeader
-        title="My Agents"
-        description="Every agent you run, its wallet and its lifetime performance."
-        action={
-          <Link
-            href="/dashboard/builder"
-            className="inline-flex items-center gap-2 rounded-lg bg-yellow-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-yellow-400"
-          >
-            <Plus className="h-4 w-4" />
-            Create agent
-          </Link>
-        }
-      />
-
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1">
-          {FILTERS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                filter === key
-                  ? 'bg-gray-800 text-white'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#e8e8f0" }}>My Agents</h1>
+          <p style={{ color: "#6b6b8a", fontSize: 14 }}>{agents.length} agent{agents.length !== 1 ? "s" : ""}</p>
         </div>
-
-        <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search agents…"
-            className="w-full rounded-lg border border-gray-800 bg-gray-900/60 py-2 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-yellow-500/50 focus:outline-none"
-          />
-        </div>
+        <Link href="/dashboard/builder" className="btn-primary" style={{ padding: "10px 20px", textDecoration: "none" }}>
+          + Create Agent
+        </Link>
       </div>
 
-      {loading ? (
-        <p className="text-sm text-gray-500">Loading agents…</p>
-      ) : error ? (
-        <Card className="p-6">
-          <p className="text-sm text-red-400">Failed to load agents: {error}</p>
-        </Card>
-      ) : visible.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={Zap}
-            title={agents.length ? 'No agents match' : 'No agents yet'}
-            description={
-              agents.length
-                ? 'Try a different filter or search term.'
-                : 'Create your first agent to start trading autonomously.'
-            }
-            action={
-              agents.length ? (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setFilter('all');
-                    setQuery('');
-                  }}
-                >
-                  Clear filters
-                </Button>
-              ) : (
-                <Link
-                  href="/dashboard/builder"
-                  className="rounded-lg bg-yellow-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-yellow-400"
-                >
-                  Create agent
-                </Link>
-              )
-            }
-          />
-        </Card>
+      {agents.length === 0 ? (
+        <div className="card" style={{ padding: 48, textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
+          <h3 style={{ fontSize: 18, color: "#e8e8f0", marginBottom: 8 }}>No agents yet</h3>
+          <p style={{ color: "#6b6b8a", marginBottom: 20 }}>Create your first BullClaw agent to start trading.</p>
+          <Link href="/dashboard/builder" className="btn-primary" style={{ padding: "10px 20px", textDecoration: "none" }}>
+            Create Agent
+          </Link>
+        </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {visible.map((a) => (
-            <Link
-              key={a.id}
-              href={`/dashboard/agent/${a.id}`}
-              className="group rounded-xl border border-gray-800 bg-gray-900/60 p-6 transition hover:border-yellow-500/40"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold text-white">{a.name}</h3>
-                    <Badge tone={a.status === 'active' ? 'green' : 'gray'}>
-                      {a.status}
-                    </Badge>
-                    {a.listedForSale ? <Badge tone="yellow">for sale</Badge> : null}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: 16 }}>
+          {agents.map(agent => (
+            <Link key={agent.id} href={`/dashboard/agent/${agent.id}`} style={{ textDecoration: "none" }}>
+              <div className="card" style={{ padding: 20, cursor: "pointer", transition: "all 0.15s" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#e8e8f0", marginBottom: 4 }}>{agent.name}</h3>
+                    <span style={{
+                      padding: "2px 8px", borderRadius: 99, fontSize: 11,
+                      background: agent.status === "active" ? "#00ff8820" : agent.status === "paused" ? "#FFB81C20" : "#ff446620",
+                      color: agent.status === "active" ? "#00ff88" : agent.status === "paused" ? "#FFB81C" : "#ff4466",
+                    }}>
+                      {agent.status}
+                    </span>
                   </div>
-                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-400">
-                    {a.persona}
-                  </p>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: agent.totalPnL >= 0 ? "#00ff88" : "#ff4466" }}>
+                    {agent.totalPnL >= 0 ? "+" : ""}{agent.totalPnL.toFixed(2)} SOL
+                  </div>
                 </div>
-                <span className="shrink-0 rounded-lg bg-gray-800 px-2 py-1 text-xs text-gray-400">
-                  {a.template}
-                </span>
+                <div style={{ fontSize: 12, color: "#6b6b8a" }}>
+                  {agent.template} • {agent.walletAddress ? `${agent.walletAddress.slice(0, 6)}...` : "No wallet"}
+                </div>
+                <div style={{ marginTop: 12, fontSize: 13, color: "#6b6b8a" }}>
+                  Fees: {agent.feeEarnings.toFixed(4)} SOL
+                </div>
               </div>
-
-              <dl className="mt-5 grid grid-cols-3 gap-4 border-t border-gray-800 pt-4 text-sm">
-                <div>
-                  <dt className="text-xs text-gray-500">P&amp;L</dt>
-                  <dd
-                    className={`mt-0.5 font-semibold ${
-                      a.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'
-                    }`}
-                  >
-                    {a.totalPnL >= 0 ? '+' : ''}
-                    {fmtUsd(a.totalPnL)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-gray-500">Fees earned</dt>
-                  <dd className="mt-0.5 font-semibold text-white">
-                    {fmtUsd(a.feeEarnings)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-gray-500">Wallet</dt>
-                  <dd className="mt-0.5 font-mono text-xs text-gray-300">
-                    {shortAddr(a.walletAddress)}
-                  </dd>
-                </div>
-              </dl>
             </Link>
           ))}
         </div>

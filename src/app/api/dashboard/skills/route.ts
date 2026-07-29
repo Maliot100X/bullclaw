@@ -1,12 +1,46 @@
-import { NextResponse } from 'next/server';
-import { getSkills } from '@/lib/data-source';
+import { NextRequest, NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
 
-export async function GET() {
+const prisma = new PrismaClient();
+
+export async function GET(req: NextRequest) {
   try {
-    const result = await getSkills();
-    return NextResponse.json({ success: true, ...result });
+    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    
+    const session = await prisma.session.findUnique({ where: { token } });
+    if (!session) return NextResponse.json({ error: "Session expired" }, { status: 401 });
+    
+    const skills = await prisma.userSkill.findMany({
+      where: { userId: session.userId },
+    });
+    
+    return NextResponse.json({ skills });
   } catch (error) {
-    console.error('skills route error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to load skills' }, { status: 500 });
+    console.error("Skills error:", error);
+    return NextResponse.json({ skills: [] });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    
+    const session = await prisma.session.findUnique({ where: { token } });
+    if (!session) return NextResponse.json({ error: "Session expired" }, { status: 401 });
+    
+    const { skillId, skillName, enabled } = await req.json();
+    
+    await prisma.userSkill.upsert({
+      where: { userId_skillId: { userId: session.userId, skillId } },
+      update: { enabled },
+      create: { userId: session.userId, skillId, skillName: skillName || skillId, source: "clawpump", enabled },
+    });
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Skills POST error:", error);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
