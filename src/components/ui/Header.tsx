@@ -33,7 +33,7 @@ export default function Header() {
           ))}
         </nav>
         <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/dashboard/settings" style={{ padding: "7px 14px", borderRadius: 7, border: "1px solid #1e1e3a", color: "#e8e8f0", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>Settings</Link>
+          <Link href="/register" style={{ padding: "7px 14px", borderRadius: 7, border: "1px solid #FFB81C", color: "#FFB81C", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>Sign Up</Link>
           <Link href="/dashboard/builder" style={{ padding: "7px 14px", borderRadius: 7, background: "linear-gradient(135deg, #FFB81C, #f0a000)", color: "#000", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>+ New Agent</Link>
         </div>
       </div>

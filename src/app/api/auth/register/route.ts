@@ -1,60 +1,58 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { generateOneTimeCode, storeOneTimeCode } from '@/lib/auth';
-import { z } from 'zod';
+import { NextRequest, NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+import crypto from "crypto";
 
-const RegisterSchema = z.object({
-  type: z.enum(['wallet', 'telegram']),
-  walletAddress: z.string().optional(),
-  telegramId: z.string().optional(),
-});
+const prisma = new PrismaClient();
 
-export async function POST(request: NextRequest) {
+function generateToken(): string {
+  return `bc_${crypto.randomBytes(32).toString("hex")}`;
+}
+
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    const parsed = RegisterSchema.parse(body);
+    const { wallet, telegram } = await req.json();
 
-    if (parsed.type === 'wallet' && !parsed.walletAddress) {
-      return NextResponse.json(
-        { error: 'walletAddress required for wallet registration' },
-        { status: 400 }
-      );
-    }
+    // Clean telegram handle
+    const telegramId = telegram?.replace("@", "") || null;
 
-    if (parsed.type === 'telegram' && !parsed.telegramId) {
-      return NextResponse.json(
-        { error: 'telegramId required for telegram registration' },
-        { status: 400 }
-      );
-    }
-
-    // Generate one-time code
-    const code = await generateOneTimeCode();
-
-    // Store in Redis
-    await storeOneTimeCode(code, parsed.telegramId, parsed.walletAddress);
-
-    // Return code to be displayed to user
-    return NextResponse.json(
-      {
-        success: true,
-        code,
-        message: 'One-time code generated. Valid for 10 minutes.',
-        expiresIn: 600,
+    // Check if user exists
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          wallet ? { wallet } : undefined,
+          telegramId ? { telegramId } : undefined,
+        ].filter(Boolean) as any,
       },
-      { status: 200 }
-    );
-  } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid request', details: error.issues },
-        { status: 400 }
-      );
+    });
+
+    if (!user) {
+      // Create new user
+      user = await prisma.user.create({
+        data: {
+          wallet: wallet || null,
+          telegramId,
+          riskLevel: "medium",
+        },
+      });
     }
 
-    console.error('Registration error:', error);
-    return NextResponse.json(
-      { error: 'Registration failed' },
-      { status: 500 }
-    );
+    // Create session
+    const token = generateToken();
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      user: { id: user.id, wallet: user.wallet, telegramId: user.telegramId },
+      sessionToken: token,
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    return NextResponse.json({ error: "Registration failed" }, { status: 500 });
   }
 }
