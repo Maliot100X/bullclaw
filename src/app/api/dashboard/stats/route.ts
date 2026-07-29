@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+// Correct $ANSEM mint address
+const ANSEM_MINT = process.env.ANSEM_MINT || "9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump";
+
 export async function GET(req: NextRequest) {
   try {
     const auth = req.headers.get("Authorization");
@@ -28,7 +31,7 @@ export async function GET(req: NextRequest) {
     try {
       const heliusKey = process.env.HELIUS_API_KEY;
       if (heliusKey) {
-        const res = await fetch(`https://api.helius.xyz/v0/token_metadata?api-key=${heliusKey}&addresses=9cRCn9rGT8V2imeM2B2PsDWT3C3iBbNmbCGNN9Z7V5J`, { cache: "no-store" });
+        const res = await fetch(`https://api.helius.xyz/v0/token_metadata?api-key=${heliusKey}&addresses=${ANSEM_MINT}`, { cache: "no-store" });
         const data = await res.json();
         if (data?.[0]?.priceInfo?.pricePerToken) {
           ansemPrice = data[0].priceInfo.pricePerToken / 1000000000;

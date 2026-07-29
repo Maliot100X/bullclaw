@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
+import prisma from './prisma';
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -36,22 +37,47 @@ export async function storeSession(token: string, userId: string, expiresIn: num
 }
 
 export async function getSession(token: string): Promise<{ userId: string } | null> {
+  // First try Redis cache
   const key = `session:${token}`;
   const value = await redis.get(key);
 
-  if (!value) return null;
-
-  const data = typeof value === 'string' ? JSON.parse(value) : value;
-
-  if (data.expiresAt < Date.now()) {
-    await redis.del(key);
-    return null;
+  if (value) {
+    const data = typeof value === 'string' ? JSON.parse(value) : value;
+    if (data.expiresAt < Date.now()) {
+      await redis.del(key);
+      return null;
+    }
+    return { userId: data.userId };
   }
 
-  return { userId: data.userId };
+  // Fallback to Prisma database
+  try {
+    const session = await prisma.session.findUnique({
+      where: { token },
+    });
+
+    if (!session) return null;
+
+    if (session.expiresAt < new Date()) {
+      await prisma.session.delete({ where: { id: session.id } });
+      return null;
+    }
+
+    return { userId: session.userId };
+  } catch (error) {
+    console.error('Error getting session from Prisma:', error);
+    return null;
+  }
 }
 
 export async function invalidateSession(token: string): Promise<void> {
   const key = `session:${token}`;
   await redis.del(key);
+  
+  // Also delete from Prisma
+  try {
+    await prisma.session.delete({ where: { token } });
+  } catch (error) {
+    // Ignore if not found
+  }
 }

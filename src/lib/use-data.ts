@@ -14,6 +14,14 @@ interface State<T> {
  * Fetches one of the /api/dashboard/* endpoints, carrying through the
  * `demo` flag so pages can surface where their numbers came from.
  * Includes auth token from localStorage.
+ * 
+ * Handles multiple response formats:
+ * - { success: true, data: [...] }
+ * - { agents: [...] }
+ * - { trades: [...] }
+ * - { holdings: [...] }
+ * - { skills: [...] }
+ * - Direct array [...] or object {...}
  */
 export function useData<T>(path: string): State<T> {
   const [state, setState] = useState<State<T>>({
@@ -44,8 +52,41 @@ export function useData<T>(path: string): State<T> {
       })
       .then((body) => {
         if (cancelled) return;
+        
+        // Extract data from various response formats
+        let data: T | null = null;
+        
+        if (body.data !== undefined) {
+          // Standard format: { success: true, data: [...] }
+          data = body.data;
+        } else if (body.agents !== undefined) {
+          // Agents format: { agents: [...] }
+          data = body.agents as T;
+        } else if (body.trades !== undefined) {
+          // Trades format: { trades: [...] }
+          data = body.trades as T;
+        } else if (body.holdings !== undefined) {
+          // Holdings format: { holdings: [...] }
+          data = body.holdings as T;
+        } else if (body.skills !== undefined) {
+          // Skills format: { skills: [...] }
+          data = body.skills as T;
+        } else if (body.listings !== undefined) {
+          // Listings format: { listings: [...] }
+          data = body.listings as T;
+        } else if (body.stats !== undefined) {
+          // Stats format: { stats: {...} }
+          data = body.stats as T;
+        } else if (Array.isArray(body)) {
+          // Direct array
+          data = body as T;
+        } else if (typeof body === 'object' && body !== null) {
+          // Direct object (like stats)
+          data = body as T;
+        }
+        
         setState({
-          data: body.data ?? body.agents ?? body,
+          data,
           demo: Boolean(body.demo),
           notice: body.notice,
           loading: false,
