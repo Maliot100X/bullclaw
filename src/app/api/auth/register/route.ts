@@ -12,25 +12,25 @@ export async function POST(req: NextRequest) {
   try {
     const { wallet, telegram } = await req.json();
 
-    // Clean telegram handle
     const telegramId = telegram?.replace("@", "") || null;
 
-    // Check if user exists
-    let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          wallet ? { wallet } : undefined,
-          telegramId ? { telegramId } : undefined,
-        ].filter(Boolean) as any,
-      },
-    });
+    // Try to find existing user
+    let user = null;
+    
+    if (wallet) {
+      user = await prisma.user.findUnique({ where: { wallet } });
+    }
+    
+    if (!user && telegramId) {
+      user = await prisma.user.findUnique({ where: { telegramId } });
+    }
 
+    // Create new user if not found
     if (!user) {
-      // Create new user
       user = await prisma.user.create({
         data: {
           wallet: wallet || null,
-          telegramId,
+          telegramId: telegramId,
           riskLevel: "medium",
         },
       });
@@ -51,8 +51,8 @@ export async function POST(req: NextRequest) {
       user: { id: user.id, wallet: user.wallet, telegramId: user.telegramId },
       sessionToken: token,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Register error:", error);
-    return NextResponse.json({ error: "Registration failed" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Registration failed" }, { status: 500 });
   }
 }
