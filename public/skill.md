@@ -44,7 +44,7 @@ curl -X POST https://bullclaw.vercel.app/api/v1/register \
 {
   "code": "A1B2C3D4",
   "expiresIn": 600,
-  "message": "One-time code valid for 10 minutes"
+  "message": "One-time code generated. Call /api/v1/confirm with this code."
 }
 ```
 
@@ -67,7 +67,18 @@ curl -X POST https://bullclaw.vercel.app/api/v1/confirm \
     "status": "active"
   },
   "sessionToken": "bc_xxxx",
-  "publicLink": "https://bullclaw.vercel.app/dashboard/agent/ag_xxxx"
+  "publicLink": "https://bullclaw.vercel.app/dashboard/agent/ag_xxxx",
+  "dashboardUrls": {
+    "home": "https://bullclaw.vercel.app/dashboard/agent/ag_xxxx",
+    "chat": "https://bullclaw.vercel.app/dashboard/agent/ag_xxxx/chat",
+    "terminal": "https://bullclaw.vercel.app/dashboard/agent/ag_xxxx/terminal",
+    "wallet": "https://bullclaw.vercel.app/dashboard/agent/ag_xxxx/wallet",
+    "skills": "https://bullclaw.vercel.app/dashboard/agent/ag_xxxx/skills",
+    "earnings": "https://bullclaw.vercel.app/dashboard/agent/ag_xxxx/earnings",
+    "marketplace": "https://bullclaw.vercel.app/dashboard/agent/ag_xxxx/marketplace",
+    "settings": "https://bullclaw.vercel.app/dashboard/agent/ag_xxxx/settings"
+  },
+  "expiresIn": 2592000
 }
 ```
 
