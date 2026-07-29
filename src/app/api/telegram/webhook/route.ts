@@ -142,26 +142,26 @@ export async function POST(req: NextRequest) {
     }
     else if (text.startsWith("/alerts")) {
       const setting = text.replace("/alerts ", "").trim();
-      const settings = await prisma.telegramSettings.findUnique({ where: { telegramId: chatId } });
+      const settings = await prisma.telegramSession.findUnique({ where: { telegramId: chatId } });
       if (!setting) {
         let alerts = `🔔 *Settings*\n\nStatus: *${settings?.notificationsEnabled ? 'ON' : 'OFF'}*\n\n/alerts on - Enable\n/alerts off - Disable\n/alerts trades - Trade alerts\n/alerts pnl - P&L alerts`;
         await sendMessage(chatId, alerts);
       } else if (setting === "on" || setting === "off") {
-        await prisma.telegramSettings.upsert({
+        await prisma.telegramSession.upsert({
           where: { telegramId: chatId },
           update: { notificationsEnabled: setting === "on" },
           create: { telegramId: chatId, notificationsEnabled: true, userId: user.id }
         });
         await sendMessage(chatId, `🔔 Notifications ${setting === "on" ? '*ENABLED*' : '*DISABLED*'}`);
       } else if (setting === "trades") {
-        await prisma.telegramSettings.upsert({
+        await prisma.telegramSession.upsert({
           where: { telegramId: chatId },
           update: { notifyTrades: !settings?.notifyTrades },
           create: { telegramId: chatId, notifyTrades: true, userId: user.id }
         });
         await sendMessage(chatId, `📊 Trade alerts toggled`);
       } else if (setting === "pnl") {
-        await prisma.telegramSettings.upsert({
+        await prisma.telegramSession.upsert({
           where: { telegramId: chatId },
           update: { notifyPnL: !settings?.notifyPnL },
           create: { telegramId: chatId, notifyPnL: true, userId: user.id }
