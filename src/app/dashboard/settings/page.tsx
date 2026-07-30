@@ -12,7 +12,6 @@ const RISK: { key: "low" | "medium" | "high"; label: string; desc: string }[] = 
 ];
 
 const KEYS = [
-  { key: "clawpump", label: "ClawPump API key", placeholder: "cpk_xxx" },
   { key: "helius", label: "Helius API key", placeholder: "xxxxxxxx-xxxx" },
   { key: "anthropic", label: "Anthropic API key", placeholder: "sk-ant-xxx" },
   { key: "openai", label: "OpenAI API key", placeholder: "sk-xxx" },
@@ -70,7 +69,6 @@ export default function SettingsPage() {
     setSaved(false);
     try {
       const body: any = { riskLevel: risk };
-      if (apiKeys.clawpump) body.clawpumpKey = apiKeys.clawpump;
       if (apiKeys.helius) body.heliusKey = apiKeys.helius;
       if (apiKeys.wallet) body.wallet = apiKeys.wallet;
 
@@ -229,7 +227,7 @@ export default function SettingsPage() {
           <div style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid #1e1e3a" }}>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 500, color: "#e8e8f0", marginBottom: 8 }}>
               ClawPump Integration
-              {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('clawpump') === 'connected' && (
+              {user?.clawpumpSet && (
                 <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, background: "#00ff8820", color: "#00ff88" }}>
                   connected
                 </span>
@@ -239,22 +237,34 @@ export default function SettingsPage() {
               <button
                 onClick={async () => {
                   try {
-                    const res = await fetch("/api/clawpump/auth");
+                    const token = localStorage.getItem("bullclaw_token");
+                    const res = await fetch("/api/clawpump/auth", {
+                      headers: token ? { Authorization: `Bearer ${token}` } : {}
+                    });
                     const data = await res.json();
-                    if (data.authUrl) window.open(data.authUrl, "_blank");
+                    if (data.authUrl) {
+                      // Open OAuth URL in same tab (not new tab)
+                      window.location.href = data.authUrl;
+                    } else {
+                      alert("Failed to get auth URL. Are you logged in?");
+                    }
                   } catch (e) {
                     console.error(e);
+                    alert("Connection failed. Please try again.");
                   }
                 }}
                 className="btn-primary"
                 style={{ padding: "8px 16px" }}
               >
-                Connect ClawPump →
+                {user?.clawpumpSet ? "Reconnect ClawPump" : "Connect ClawPump →"}
               </button>
               <span style={{ fontSize: 12, color: "#6b6b8a" }}>
-                OAuth2 connection for agent trading
+                OAuth2 required for agent trading
               </span>
             </div>
+            <p style={{ marginTop: 8, fontSize: 11, color: "#6b6b8a" }}>
+              Note: Your dashboard API key (cpk_...) is not used. You must connect via OAuth above.
+            </p>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 16, borderTop: "1px solid #1e1e3a" }}>
