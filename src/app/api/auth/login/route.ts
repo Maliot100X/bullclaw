@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
       user = await prisma.user.findUnique({ where: { telegramId } });
     } else if (wallet) {
       user = await prisma.user.findUnique({ where: { wallet } });
+      if (!user) {
+        return NextResponse.json({ error: "No account found. Please register first." }, { status: 404 });
+      }
     }
 
     // Don't auto-create - user must register first

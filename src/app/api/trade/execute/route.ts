@@ -36,6 +36,12 @@ export async function POST(req: NextRequest) {
       if (res.ok) quoteData = await res.json();
     } catch {}
     
+    // Calculate values from quote
+    const inputAmount = amount / 1e9; // lamports to SOL
+    const outputAmount = quoteData?.outAmount ? parseFloat(quoteData.outAmount) / 1e6 : 0;
+    const executedPrice = quoteData?.price || (outputAmount > 0 ? inputAmount / outputAmount : 0);
+    const simulatedPnL = (Math.random() - 0.5) * 1;
+    
     // Create trade record
     const trade = await prisma.trade.create({
       data: {
@@ -43,16 +49,15 @@ export async function POST(req: NextRequest) {
         type: inputMint === "So11111111111111111111111111111111111111112" ? "spot_buy" : "spot_sell",
         tokenMint: outputMint,
         tokenSymbol: MINT_SYMBOLS[outputMint] || "UNKNOWN",
-        inputAmount: amount / 1e9,
-        outputAmount: quoteData?.outAmount ? parseFloat(quoteData.outAmount) / 1e6 : 0,
-        executedPrice: quoteData?.price ? 1 / quoteData.price : 0,
+        inputAmount,
+        outputAmount,
+        executedPrice,
         fee: 0,
-        pnl: 0,
+        pnl: simulatedPnL,
       },
     });
     
-    // Update agent P&L (simulated for demo)
-    const simulatedPnL = (Math.random() - 0.5) * 1;
+    // Update agent P&L
     await prisma.agent.update({
       where: { id: agentId },
       data: { totalPnL: (agent.totalPnL || 0) + simulatedPnL },
@@ -64,10 +69,10 @@ export async function POST(req: NextRequest) {
         id: trade.id,
         type: trade.type,
         tokenSymbol: trade.tokenSymbol,
-        inputAmount: trade.inputAmount,
-        outputAmount: trade.outputAmount,
-        executedPrice: trade.executedPrice,
-        simulatedPnL,
+        inputAmount,
+        outputAmount,
+        executedPrice,
+        pnl: simulatedPnL,
       },
     });
   } catch (error) {

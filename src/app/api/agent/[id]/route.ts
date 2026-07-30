@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       where: { id, userId: session.userId },
     });
     
-    if (!agent) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    if (!agent || agent.status === "deleted") return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     
     return NextResponse.json({ agent });
   } catch (error) {
