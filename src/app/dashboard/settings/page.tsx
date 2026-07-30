@@ -220,6 +220,39 @@ export default function SettingsPage() {
               />
             </div>
           ))}
+
+          {/* ClawPump MCP Connection */}
+          <div style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid #1e1e3a" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 500, color: "#e8e8f0", marginBottom: 8 }}>
+              ClawPump Integration
+              {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('clawpump') === 'connected' && (
+                <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, background: "#00ff8820", color: "#00ff88" }}>
+                  connected
+                </span>
+              )}
+            </label>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/clawpump/auth");
+                    const data = await res.json();
+                    if (data.authUrl) window.open(data.authUrl, "_blank");
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+                className="btn-primary"
+                style={{ padding: "8px 16px" }}
+              >
+                Connect ClawPump →
+              </button>
+              <span style={{ fontSize: 12, color: "#6b6b8a" }}>
+                OAuth2 connection for agent trading
+              </span>
+            </div>
+          </div>
+
           <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 16, borderTop: "1px solid #1e1e3a" }}>
             <button onClick={save} className="btn-primary" style={{ padding: "10px 20px" }}>Save changes</button>
             {saved && <span style={{ color: "#00ff88", fontSize: 14 }}>Saved!</span>}
