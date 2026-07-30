@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
 const MCP_URL = "https://clawpump-mcp-production.up.railway.app";
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL}/api/clawpump/callback`;
+const REDIRECT_URI = "https://bullclaw.vercel.app/api/clawpump/callback";
 
 export function generatePKCE() {
   const verifier = crypto.randomBytes(32).toString('base64url');

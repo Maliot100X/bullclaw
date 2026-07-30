@@ -36,15 +36,16 @@ export async function GET(req: NextRequest) {
       }
     } catch {}
 
-    // Get SOL price from DexScreener
+    // Get SOL price from CoinGecko
     let solPrice = 0;
     try {
-      const solRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112`, { cache: "no-store" });
+      const solRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd`, { cache: "no-store" });
       const solData = await solRes.json();
-      if (solData?.pairs?.[0]?.priceUsd) {
-        solPrice = parseFloat(solData.pairs[0].priceUsd);
+      if (solData?.solana?.usd) {
+        solPrice = solData.solana.usd;
       }
     } catch {}
+    if (solPrice === 0) solPrice = 180;
 
     return NextResponse.json({
       totalAgents: agents.length,
