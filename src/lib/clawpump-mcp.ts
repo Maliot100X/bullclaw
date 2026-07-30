@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-const MCP_URL = "https://clawpump-mcp-production.up.railway.app";
+const MCP_URL = "https://mcp.clawpump.tech";
 const REDIRECT_URI = "https://bullclaw.vercel.app/api/clawpump/callback";
 
 export function generatePKCE() {
