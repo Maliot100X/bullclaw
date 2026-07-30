@@ -19,11 +19,38 @@ export async function GET(req: NextRequest) {
 
     // Get stored ClawPump token
     const encrypted = await redis.get(`clawpump_token:${session.userId}`);
+    
     if (!encrypted) {
+      // No OAuth token stored - check if user has API key set
+      const user = await prisma.user.findUnique({ where: { id: session.userId } });
+      if (user?.encryptedClawpumpKey) {
+        // Use the stored CPK key directly
+        try {
+          const encryptionKey = process.env.ENCRYPTION_KEY || "";
+          const apiKey = encryptionKey ? decryptApiKey(user.encryptedClawpumpKey, encryptionKey) : user.encryptedClawpumpKey;
+          
+          // Try to call MCP with the API key
+          const result = await callMCPTool(apiKey, "list_agents", {});
+          return NextResponse.json({ 
+            success: true, 
+            agents: result || [], 
+            connected: true,
+            source: "api_key" 
+          });
+        } catch (e) {
+          console.error("MCP call failed:", e);
+          return NextResponse.json({ 
+            success: true, 
+            agents: [], 
+            connected: true, 
+            error: "ClawPump API key is invalid or expired. Please reconnect ClawPump." 
+          });
+        }
+      }
       return NextResponse.json({ success: true, agents: [], connected: false });
     }
 
-    // Decrypt token
+    // Decrypt stored token
     const encryptionKey = process.env.ENCRYPTION_KEY || "";
     if (!encryptionKey) {
       return NextResponse.json({ success: true, agents: [], connected: true, error: "Encryption not configured" });
