@@ -65,10 +65,39 @@ export default function LoginPage() {
         </div>
 
         <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #1e1e3a", textAlign: "center" }}>
-          <p style={{ color: "#6b6b8a", fontSize: 13, marginBottom: 8 }}>Or connect via</p>
-          <a href="https://t.me/AnsemClawBot" target="_blank" rel="noopener noreferrer" style={{ padding: "8px 16px", background: "#0088cc", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
-            Telegram
-          </a>
+          <p style={{ color: "#6b6b8a", fontSize: 13, marginBottom: 8 }}>Or connect with</p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <a href="https://t.me/AnsemClawBot" target="_blank" rel="noopener noreferrer"
+              style={{ padding: "8px 16px", background: "#0088cc", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
+              Telegram
+            </a>
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined' && (window as any).solana?.isPhantom) {
+                  (window as any).solana.connect().then((resp: any) => {
+                    const wallet = resp.publicKey.toString();
+                    fetch("/api/auth/login", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ wallet }),
+                    }).then(r => r.json()).then(data => {
+                      if (data.success) {
+                        localStorage.setItem("bullclaw_token", data.sessionToken);
+                        localStorage.setItem("bullclaw_user_id", data.user.id);
+                        router.push("/dashboard");
+                      } else {
+                        setError(data.error || "Login failed");
+                      }
+                    });
+                  });
+                } else {
+                  alert("Please install Phantom wallet");
+                }
+              }}
+              style={{ padding: "8px 16px", background: "#AB9FF2", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer" }}>
+              Phantom
+            </button>
+          </div>
         </div>
       </div>
 

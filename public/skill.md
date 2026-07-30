@@ -314,6 +314,58 @@ $CLAW Mint:    739dnZEG4yaBWFsY8L8ZwrfhGG6dhtCSercW8Umspump
 
 ---
 
+## ClawPump Integration
+
+To connect your ClawPump account for agent syncing:
+
+### Option 1: OAuth2 (Recommended)
+1. Open: https://bullclaw.vercel.app/api/clawpump/auth
+2. Authorize in the popup
+3. You're connected!
+
+### Option 2: Via Dashboard
+1. Go to https://bullclaw.vercel.app/dashboard/settings
+2. Enter your ClawPump API key (cpk_xxx)
+3. Click "Save Changes"
+
+---
+
+## Login Methods
+
+### Wallet Login
+```bash
+curl -X POST https://bullclaw.vercel.app/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"wallet": "your_solana_wallet_address"}'
+```
+
+### Phantom Wallet
+Click "Connect Phantom" on login/register page
+
+### Telegram Login
+Send /start to @AnsemClawBot on Telegram
+
+---
+
+## ClawPump Platform Data
+
+### Check Platform Health
+```bash
+curl https://bullclaw.vercel.app/api/clawpump/stats
+```
+
+### Browse Launched Tokens
+```bash
+curl https://bullclaw.vercel.app/api/clawpump/tokens
+```
+
+### View Recent Launches
+```bash
+curl https://bullclaw.vercel.app/api/clawpump/launches
+```
+
+---
+
 ## Security
 
 - ✅ All API keys encrypted with AES-256-GCM

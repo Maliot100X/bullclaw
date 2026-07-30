@@ -67,6 +67,36 @@ export default function RegisterPage() {
           </form>
         )}
       </div>
+      <div style={{ textAlign: "center", marginTop: 16 }}>
+        <p style={{ color: "#6b6b8a", fontSize: 13, marginBottom: 8 }}>Or register with</p>
+        <button
+          onClick={() => {
+            if (typeof window !== 'undefined' && (window as any).solana?.isPhantom) {
+              (window as any).solana.connect().then((resp: any) => {
+                const wallet = resp.publicKey.toString();
+                fetch("/api/auth/register", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ wallet }),
+                }).then(r => r.json()).then(data => {
+                  if (data.success) {
+                    localStorage.setItem("bullclaw_token", data.sessionToken);
+                    localStorage.setItem("bullclaw_user_id", data.user.id);
+                    setSuccess("Account created! Redirecting...");
+                    setTimeout(() => router.push("/dashboard"), 1500);
+                  } else {
+                    setError(data.error || "Registration failed");
+                  }
+                });
+              });
+            } else {
+              alert("Please install Phantom wallet");
+            }
+          }}
+          style={{ padding: "10px 20px", background: "#AB9FF2", color: "#fff", borderRadius: 8, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer" }}>
+          Connect Phantom Wallet
+        </button>
+      </div>
       <div style={{ textAlign: "center", marginTop: 24 }}>
         <p style={{ color: "#6b6b8a", fontSize: 14 }}>Already have an account? <a href="/login" style={{ color: "#FFB81C" }}>Login here</a></p>
       </div>
