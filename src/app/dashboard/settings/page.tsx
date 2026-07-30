@@ -229,24 +229,60 @@ export default function SettingsPage() {
               ClawPump Integration
               {user?.clawpumpSet && (
                 <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, background: "#00ff8820", color: "#00ff88" }}>
-                  connected
+                  ✓ Connected
                 </span>
               )}
             </label>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            
+            {(() => {
+              const params = new URLSearchParams(window.location.search);
+              const status = params.get("clawpump");
+              const error = params.get("error");
+              if (status === "connected") {
+                return (
+                  <div style={{ padding: "12px", borderRadius: 8, background: "#00ff8815", border: "1px solid #00ff8830", marginBottom: 12 }}>
+                    <p style={{ color: "#00ff88", fontSize: 13, margin: 0 }}>
+                      ✓ ClawPump connected successfully! Your agents are now available.
+                    </p>
+                  </div>
+                );
+              }
+              if (error) {
+                const errorMessages: Record<string, string> = {
+                  missing_params: "Missing OAuth parameters. Please try again.",
+                  session_expired: "OAuth session expired. Please try again.",
+                  auth_failed: "Authentication failed. Please try again.",
+                  callback_failed: "Connection failed. Please try again.",
+                };
+                return (
+                  <div style={{ padding: "12px", borderRadius: 8, background: "#ff000015", border: "1px solid #ff000030", marginBottom: 12 }}>
+                    <p style={{ color: "#ff6666", fontSize: 13, margin: 0 }}>
+                      ✗ {errorMessages[error] || `Connection error: ${error}`}
+                    </p>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+            
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               <button
                 onClick={async () => {
                   try {
                     const token = localStorage.getItem("bullclaw_token");
+                    if (!token) {
+                      alert("Please log in first");
+                      return;
+                    }
                     const res = await fetch("/api/clawpump/auth", {
                       headers: token ? { Authorization: `Bearer ${token}` } : {}
                     });
                     const data = await res.json();
                     if (data.authUrl) {
-                      // Open OAuth URL in same tab (not new tab)
+                      // Navigate to ClawPump OAuth
                       window.location.href = data.authUrl;
                     } else {
-                      alert("Failed to get auth URL. Are you logged in?");
+                      alert("Failed to get auth URL. Please make sure you're logged in.");
                     }
                   } catch (e) {
                     console.error(e);
@@ -256,14 +292,14 @@ export default function SettingsPage() {
                 className="btn-primary"
                 style={{ padding: "8px 16px" }}
               >
-                {user?.clawpumpSet ? "Reconnect ClawPump" : "Connect ClawPump →"}
+                {user?.clawpumpSet ? "🔄 Reconnect ClawPump" : "🔗 Connect ClawPump"}
               </button>
               <span style={{ fontSize: 12, color: "#6b6b8a" }}>
-                OAuth2 required for agent trading
+                {user?.clawpumpSet ? "Click to refresh connection" : "Enable AI agent trading via ClawPump"}
               </span>
             </div>
             <p style={{ marginTop: 8, fontSize: 11, color: "#6b6b8a" }}>
-              Note: Your dashboard API key (cpk_...) is not used. You must connect via OAuth above.
+              You'll be redirected to ClawPump to authorize. Your agents will sync automatically.
             </p>
           </div>
 

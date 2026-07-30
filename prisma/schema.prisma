@@ -20,6 +20,7 @@ model User {
   telegramUsername     String?
 
   encryptedClawpumpKey String?
+  clawpumpSet          Boolean  @default(false)
   encryptedHeliusKey   String?
   encryptedOpenAIKey   String?
   encryptedAnthropicKey String?
