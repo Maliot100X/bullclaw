@@ -25,25 +25,15 @@ export async function POST(req: NextRequest) {
           ]
         }
       });
-      if (!user) {
-        user = await prisma.user.create({
-          data: { telegramId: apiKey.startsWith("tg_") ? apiKey.replace("tg_", "") : null, wallet: wallet || null, riskLevel: "medium" },
-        });
-      }
     } else if (telegramId) {
       user = await prisma.user.findUnique({ where: { telegramId } });
-      if (!user) {
-        user = await prisma.user.create({ data: { telegramId, riskLevel: "medium" } });
-      }
     } else if (wallet) {
       user = await prisma.user.findUnique({ where: { wallet } });
-      if (!user) {
-        user = await prisma.user.create({ data: { wallet, riskLevel: "medium" } });
-      }
     }
 
+    // Don't auto-create - user must register first
     if (!user) {
-      return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+      return NextResponse.json({ error: "No account found. Please register first." }, { status: 404 });
     }
 
     const token = generateToken();

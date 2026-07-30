@@ -83,6 +83,10 @@ export default function SettingsPage() {
       if (res.ok) {
         setSaved(true);
         setApiKeys({});
+        // Re-fetch settings to update badges
+        const updated = await fetch("/api/settings", { headers: { Authorization: `Bearer ${token}` } });
+        const userData = await updated.json();
+        setUser(userData);
         setTimeout(() => setSaved(false), 3000);
       }
     } catch (e) {

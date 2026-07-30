@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
-    const clientId = searchParams.get("state") || searchParams.get("client_id");
+    const state = searchParams.get("state"); // This is the userId
+    const clientId = searchParams.get("client_id");
 
     if (!code || !clientId) {
       return NextResponse.redirect(new URL("/dashboard/settings?error=missing_code", req.url));
@@ -26,11 +27,10 @@ export async function GET(req: NextRequest) {
     const tokenData = await exchangeCode(clientId, code, verifier as string);
     await redis.del(`pkce:${clientId}`);
 
-    if (tokenData.access_token) {
-      // Store encrypted access token
+    if (tokenData.access_token && state) {
+      // Store encrypted access token with userId
       const encrypted = encryptApiKey(tokenData.access_token, process.env.ENCRYPTION_KEY!);
-      // Store in Redis for quick access
-      await redis.set(`clawpump_token:${clientId}`, encrypted, { ex: tokenData.expires_in || 3600 });
+      await redis.set(`clawpump_token:${state}`, encrypted, { ex: tokenData.expires_in || 3600 });
       return NextResponse.redirect(new URL("/dashboard/settings?clawpump=connected", req.url));
     }
 

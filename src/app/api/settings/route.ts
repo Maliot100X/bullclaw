@@ -17,6 +17,10 @@ export async function GET(req: NextRequest) {
       wallet: user.wallet,
       telegramId: user.telegramId,
       riskLevel: user.riskLevel,
+      clawpumpSet: !!user.encryptedClawpumpKey,
+      heliusSet: !!user.encryptedHeliusKey,
+      anthropicSet: !!user.encryptedAnthropicKey,
+      openaiSet: !!user.encryptedOpenAIKey,
     });
   } catch (error) {
     console.error("Settings GET error:", error);

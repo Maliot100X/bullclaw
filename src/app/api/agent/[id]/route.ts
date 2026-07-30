@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { decryptApiKey } from "@/lib/crypto";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -8,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     
     const session = await prisma.session.findUnique({ where: { token } });
-    if (!session) return NextResponse.json({ error: "Session expired" }, { status: 401 });
+    if (!session || session.expiresAt < new Date()) return NextResponse.json({ error: "Session expired" }, { status: 401 });
     
     const agent = await prisma.agent.findFirst({
       where: { id, userId: session.userId },
@@ -31,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     
     const session = await prisma.session.findUnique({ where: { token } });
-    if (!session) return NextResponse.json({ error: "Session expired" }, { status: 401 });
+    if (!session || session.expiresAt < new Date()) return NextResponse.json({ error: "Session expired" }, { status: 401 });
     
     // Verify ownership
     const existing = await prisma.agent.findFirst({
@@ -80,7 +81,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     
     const session = await prisma.session.findUnique({ where: { token } });
-    if (!session) return NextResponse.json({ error: "Session expired" }, { status: 401 });
+    if (!session || session.expiresAt < new Date()) return NextResponse.json({ error: "Session expired" }, { status: 401 });
     
     // Verify ownership
     const existing = await prisma.agent.findFirst({
@@ -112,7 +113,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
 }
 
-// Chat message handler (for AI integration placeholder)
+// Chat message handler with AI integration
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     
     const session = await prisma.session.findUnique({ where: { token } });
-    if (!session) return NextResponse.json({ error: "Session expired" }, { status: 401 });
+    if (!session || session.expiresAt < new Date()) return NextResponse.json({ error: "Session expired" }, { status: 401 });
     
     const agent = await prisma.agent.findFirst({
       where: { id, userId: session.userId },
@@ -131,19 +132,93 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const body = await req.json();
     const { message } = body;
     
+    // Get user to check for API keys
+    const user = await prisma.user.findUnique({ where: { id: session.userId } });
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    
+    const encryptionKey = process.env.ENCRYPTION_KEY || "";
+    let aiResponse = "";
+    
+    // Try Anthropic
+    if (user.encryptedAnthropicKey && encryptionKey) {
+      try {
+        const apiKey = decryptApiKey(user.encryptedAnthropicKey, encryptionKey);
+        const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: agent.model || "claude-sonnet-4-6",
+            max_tokens: 1024,
+            system: `You are ${agent.name}. ${agent.persona || "You are a Solana trading agent."}
+
+You have access to:
+- Jupiter for swap quotes and execution
+- Solana blockchain for wallet operations
+- DexScreener for price data
+- ClawPump for token launches
+
+Keep responses concise and action-oriented.`,
+            messages: [{ role: "user", content: message }],
+          }),
+        });
+        if (anthropicRes.ok) {
+          const data = await anthropicRes.json();
+          aiResponse = data.content?.[0]?.text || "";
+        }
+      } catch (e) {
+        console.error("Anthropic error:", e);
+      }
+    }
+    
+    // Try OpenAI if Anthropic failed
+    if (!aiResponse && user.encryptedOpenAIKey && encryptionKey) {
+      try {
+        const apiKey = decryptApiKey(user.encryptedOpenAIKey, encryptionKey);
+        const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: agent.model || "gpt-4o-mini",
+            messages: [
+              { role: "system", content: `You are ${agent.name}. ${agent.persona || "You are a Solana trading agent."}` },
+              { role: "user", content: message },
+            ],
+            max_tokens: 1024,
+          }),
+        });
+        if (openaiRes.ok) {
+          const data = await openaiRes.json();
+          aiResponse = data.choices?.[0]?.message?.content || "";
+        }
+      } catch (e) {
+        console.error("OpenAI error:", e);
+      }
+    }
+    
+    // Fallback if no API keys
+    if (!aiResponse) {
+      aiResponse = "No AI provider configured. Add your Anthropic or OpenAI API key in Settings → API Keys to enable AI chat.";
+    }
+    
     // Log the interaction
     await prisma.auditLog.create({
       data: {
         agentId: id,
         userId: session.userId,
         action: 'chat_message',
-        details: JSON.stringify({ message: message?.substring(0, 500) }),
+        details: JSON.stringify({ message: message?.substring(0, 500), hasAIResponse: !!aiResponse }),
       },
     });
     
-    // Return placeholder response
     return NextResponse.json({
-      response: `Message received by ${agent.name}. AI integration coming soon.`,
+      response: aiResponse,
       agent: {
         id: agent.id,
         name: agent.name,

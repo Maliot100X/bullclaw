@@ -24,8 +24,8 @@ export async function registerClient() {
   return res.json();
 }
 
-export function getAuthUrl(clientId: string, codeChallenge: string) {
-  return MCP_URL + "/authorize?" + new URLSearchParams({
+export function getAuthUrl(clientId: string, codeChallenge: string, userId?: string) {
+  const params = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
     redirect_uri: REDIRECT_URI,
@@ -33,6 +33,8 @@ export function getAuthUrl(clientId: string, codeChallenge: string) {
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
   });
+  if (userId) params.set("state", userId);
+  return MCP_URL + "/authorize?" + params.toString();
 }
 
 export async function exchangeCode(clientId: string, code: string, codeVerifier: string) {

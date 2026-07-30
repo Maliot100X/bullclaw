@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
       }
     }
     else if (text.startsWith("/alerts")) {
-      const setting = text.replace("/alerts ", "").trim();
+      const setting = text.replace("/alerts", "").trim();
       const settings = await prisma.telegramSession.findUnique({ where: { telegramId: chatId } });
       if (!setting) {
         const notificationsOn = settings?.notificationsEnabled ?? true;

@@ -50,7 +50,21 @@ export default function AgentOverviewPage() {
           </span>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn-primary" style={{ padding: "8px 16px" }}>
+          <button 
+            className="btn-primary" 
+            style={{ padding: "8px 16px" }}
+            onClick={async () => {
+              const token = localStorage.getItem("bullclaw_token");
+              if (!token) return;
+              const newStatus = agent.status === "active" ? "paused" : "active";
+              await fetch(`/api/agent/${agent.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ status: newStatus }),
+              });
+              setAgent({ ...agent, status: newStatus });
+            }}
+          >
             {agent.status === "active" ? "Pause" : "Resume"}
           </button>
         </div>

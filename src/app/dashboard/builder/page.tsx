@@ -7,6 +7,7 @@ const TEMPLATES = [
   { id: "perps-sniper", name: "Perps Sniper", description: "Phoenix perpetuals trader", icon: "🎯" },
   { id: "memecoin-launcher", name: "Memecoin Launcher", description: "Launch tokens on Pump.fun", icon: "🚀" },
   { id: "portfolio-manager", name: "Portfolio Manager", description: "Multi-asset portfolio management", icon: "💼" },
+  { id: "custom", name: "Custom", description: "Start from scratch with full control", icon: "🛠️" },
 ];
 
 export default function AgentBuilderPage() {

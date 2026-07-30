@@ -30,8 +30,6 @@ const TABS = [
 ];
 
 export default function AgentLayout({ children }: { children: ReactNode }) {
-  // `params` is a Promise in Next 16, so client components read the route
-  // with useParams() rather than unwrapping it.
   const params = useParams<{ id: string }>();
   const pathname = usePathname();
   const agentId = params.id;
@@ -45,18 +43,18 @@ export default function AgentLayout({ children }: { children: ReactNode }) {
     <div>
       <Link
         href="/dashboard/agents"
-        className="mb-4 inline-flex items-center gap-2 text-sm text-gray-400 transition hover:text-white"
+        style={{ marginBottom: 16, display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, color: "#6b6b8a", textDecoration: "none", transition: "color 0.15s" }}
       >
-        <ArrowLeft className="h-4 w-4" />
+        <ArrowLeft size={16} />
         All agents
       </Link>
 
       {/* Agent header */}
-      <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900/60 p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold text-white">
+      <div style={{ marginBottom: 24, borderRadius: 12, border: "1px solid #1e1e3a", background: "#0e0e1a", padding: 24 }}>
+        <div style={{ display: "flex", flexWrap: "wrap" as const, justifyContent: "space-between", gap: 16 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 8 }}>
+              <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e8e8f0" }}>
                 {current?.name ?? 'Agent'}
               </h1>
               {current ? (
@@ -66,30 +64,25 @@ export default function AgentLayout({ children }: { children: ReactNode }) {
               ) : null}
               {current?.listedForSale ? <Badge tone="yellow">for sale</Badge> : null}
             </div>
-            <p className="mt-1.5 max-w-2xl text-sm text-gray-400">
+            <p style={{ marginTop: 6, maxWidth: 640, fontSize: 14, color: "#6b6b8a" }}>
               {current?.description ?? `ID: ${agentId}`}
             </p>
-            <p className="mt-2 font-mono text-xs text-gray-500">
+            <p style={{ marginTop: 8, fontFamily: "monospace", fontSize: 12, color: "#3a3a5a" }}>
               {current?.model} · {shortAddr(current?.walletAddress)}
             </p>
           </div>
 
           {current ? (
-            <div className="flex gap-8 text-right">
+            <div style={{ display: "flex", gap: 32, textAlign: "right" }}>
               <div>
-                <p className="text-xs text-gray-500">P&amp;L</p>
-                <p
-                  className={`mt-0.5 font-semibold ${
-                    current.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'
-                  }`}
-                >
-                  {current.totalPnL >= 0 ? '+' : ''}
-                  {fmtUsd(current.totalPnL)}
+                <p style={{ fontSize: 12, color: "#3a3a5a" }}>P&amp;L</p>
+                <p style={{ marginTop: 2, fontWeight: 600, color: current.totalPnL >= 0 ? "#00ff88" : "#ff4466" }}>
+                  {current.totalPnL >= 0 ? '+' : ''}{fmtUsd(current.totalPnL)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Fees</p>
-                <p className="mt-0.5 font-semibold text-white">
+                <p style={{ fontSize: 12, color: "#3a3a5a" }}>Fees</p>
+                <p style={{ marginTop: 2, fontWeight: 600, color: "#e8e8f0" }}>
                   {fmtUsd(current.feeEarnings)}
                 </p>
               </div>
@@ -99,7 +92,7 @@ export default function AgentLayout({ children }: { children: ReactNode }) {
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-1 overflow-x-auto border-b border-gray-800">
+      <div style={{ marginBottom: 24, display: "flex", gap: 4, overflowX: "auto", borderBottom: "1px solid #1e1e3a" }}>
         {TABS.map(({ seg, label, icon: Icon }) => {
           const href = `${base}${seg}`;
           const active = pathname === href;
@@ -107,13 +100,16 @@ export default function AgentLayout({ children }: { children: ReactNode }) {
             <Link
               key={href}
               href={href}
-              className={`flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition ${
-                active
-                  ? 'border-yellow-500 text-yellow-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "12px 16px", fontSize: 14, fontWeight: 500,
+                color: active ? "#FFB81C" : "#6b6b8a",
+                borderBottom: `2px solid ${active ? "#FFB81C" : "transparent"}`,
+                textDecoration: "none", transition: "all 0.15s",
+                whiteSpace: "nowrap" as const,
+              }}
             >
-              <Icon className="h-4 w-4" />
+              <Icon size={16} />
               {label}
             </Link>
           );

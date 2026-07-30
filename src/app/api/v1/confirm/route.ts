@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { verifyOneTimeCode, generateSessionToken, storeSession } from '@/lib/auth';
 import { z } from 'zod';
 import { Redis } from '@upstash/redis';
+import { Keypair } from '@solana/web3.js';
 
 const ConfirmSchema = z.object({
   code: z.string().length(8),
@@ -45,10 +46,14 @@ export async function POST(request: NextRequest) {
     
     await redis.del(agentDataKey);
 
+    // Generate wallet for agent
+    const keypair = Keypair.generate();
+    const walletAddress = keypair.publicKey.toBase58();
+
     // Create system user for agent
     const systemUser = await prisma.user.create({
       data: {
-        wallet: `agent_${agentData.agentId}`,
+        wallet: walletAddress,
         riskLevel: 'medium',
         ansemHolder: false,
       },
@@ -64,6 +69,7 @@ export async function POST(request: NextRequest) {
         template: 'custom',
         status: 'active',
         skillsJson: JSON.stringify([]),
+        walletAddress,
       },
     });
 

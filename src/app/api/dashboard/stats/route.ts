@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
         solPrice = solData.solana.usd;
       }
     } catch {}
-    if (solPrice === 0 || solPrice < 50) solPrice = 180;
+    if (solPrice === 0 || solPrice < 30) solPrice = 150;
 
     return NextResponse.json({
       totalAgents: agents.length,

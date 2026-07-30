@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 
-const CLAWPUMP_BASE_URL = 'https://api.clawpump.tech';
+const CLAWPUMP_BASE_URL = 'https://clawpump.vercel.app';
 const CLAWPUMP_API_KEY = process.env.CLAWPUMP_API_KEY;
 
 class ClawPumpClient {

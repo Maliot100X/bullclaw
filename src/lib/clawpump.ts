@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const CLAWPUMP_API_KEY = process.env.CLAWPUMP_API_KEY;
-const CLAWPUMP_BASE_URL = 'https://api.clawpump.tech';
+const CLAWPUMP_BASE_URL = 'https://clawpump.vercel.app';
 
 const client = axios.create({
   baseURL: CLAWPUMP_BASE_URL,

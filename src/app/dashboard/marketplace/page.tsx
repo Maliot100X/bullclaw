@@ -71,7 +71,11 @@ export default function MarketplacePage() {
                   <div style={{ fontSize: 14, fontWeight: 600, color: "#e8e8f0" }}>{listing.subscribers}</div>
                 </div>
               </div>
-              <button className="btn-primary" style={{ width: "100%", marginTop: 16, padding: "10px 20px" }}>
+              <button 
+                className="btn-primary" 
+                style={{ width: "100%", marginTop: 16, padding: "10px 20px" }}
+                onClick={() => alert("Buy functionality requires ClawPump wallet connection. Connect in Settings first.")}
+              >
                 Buy Agent
               </button>
             </div>
